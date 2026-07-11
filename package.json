@@ -1,0 +1,17 @@
+{
+  "name": "arc-git",
+  "version": "0.1.0",
+  "description": "Self-improving git impersonator for Yandex Arcadia arc trees",
+  "type": "module",
+  "scripts": {
+    "gen": "bun scripts/gen.ts",
+    "check": "bun x tsc --noEmit",
+    "test": "bun run gen && bun test",
+    "build": "bun run gen && bun x tsc --noEmit && bun test && bun build --compile --minify src/main.ts --outfile dist/git",
+    "install-shim": "bun scripts/install.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.6.0"
+  }
+}
