@@ -45,6 +45,7 @@ import p_stash from "./paths/stash"
 import p_status_long from "./paths/status-long"
 import p_status_porcelain_v1 from "./paths/status-porcelain-v1"
 import p_status_porcelain_v2 from "./paths/status-porcelain-v2"
+import p_status_sb from "./paths/status-sb"
 import p_switch from "./paths/switch"
 import p_symbolic_ref_head from "./paths/symbolic-ref-head"
 import p_unsupported_clone from "./paths/unsupported-clone"
@@ -104,6 +105,7 @@ export const paths: Path[] = [
 	p_status_long,
 	p_status_porcelain_v1,
 	p_status_porcelain_v2,
+	p_status_sb,
 	p_switch,
 	p_symbolic_ref_head,
 	p_unsupported_clone,
