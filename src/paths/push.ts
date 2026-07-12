@@ -8,7 +8,7 @@
 //     names the users/... ref; passthrough preserves that
 //   - --force-with-lease downgrades to arc push -f (accepted contract)
 // Login comes from arc info --json (user_login).
-import { arcInfo, definePath, fail, isExecResult, isRemoteAlias, ok, pushLens } from "../core"
+import { arcInfo, definePath, fail, isDetached, isExecResult, isRemoteAlias, ok, pushLens } from "../core"
 
 export default definePath({
 	name: "push",
@@ -31,6 +31,12 @@ export default definePath({
 			if (isExecResult(info)) return info
 			const login = info.user_login
 			if (!login) return fail(128, "fatal: arc-git: cannot determine user login from arc info\n")
+			if (refspec === "HEAD") {
+				// `git push origin HEAD` = push the current branch — must never
+				// become users/<login>/HEAD
+				if (isDetached(info.branch)) return fail(128, "fatal: You are not currently on a branch.\n")
+				refspec = info.branch!
+			}
 			arcArgs.push("--set-upstream", pushLens(refspec, login))
 		} else if (args.flags.has("-u") || args.flags.has("--set-upstream")) {
 			const info = await arcInfo(ctx)
@@ -58,6 +64,15 @@ export default definePath({
 		{
 			name: "double-prefix guard",
 			argv: ["push", "-u", "arcadia", "users/darl/feature-x"],
+			arcReplies: {
+				"info --json": { stdout: '{"branch":"feature-x","user_login":"darl"}' },
+				"push --set-upstream users/darl/feature-x": {},
+			},
+			want: { stdout: "", code: 0 },
+		},
+		{
+			name: "HEAD refspec resolves to current branch (git push origin HEAD)",
+			argv: ["push", "-u", "origin", "HEAD"],
 			arcReplies: {
 				"info --json": { stdout: '{"branch":"feature-x","user_login":"darl"}' },
 				"push --set-upstream users/darl/feature-x": {},

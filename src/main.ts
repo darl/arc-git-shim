@@ -6,8 +6,8 @@ import { existsSync, renameSync } from "node:fs"
 import { INSTALLED_GIT, PREV_GIT } from "./build"
 import { checkCollisions, dispatch, stripGlobalFlags } from "./core"
 import type { ExecResult } from "./core"
-import { detectTree, makeCtx, persistCtx } from "./ctx"
-import { execRealGit } from "./gitexec"
+import { detectTree, loadConfigStore, makeCtx, persistCtx } from "./ctx"
+import { execRealGit, findRealGit } from "./gitexec"
 import { runAll } from "./harness"
 import { readSrcDir, spawnLearner, triggerLearning } from "./learning"
 import { paths } from "./paths-index"
@@ -121,6 +121,47 @@ async function emit(res: ExecResult, paged: boolean): Promise<never> {
 	process.exit(res.code)
 }
 
+/** Value of alias.<name>: the shim-local config store first (set via
+ * `git config` inside the arc tree), then the user's real git config. */
+async function aliasValue(name: string, cwd: string, arcRoot: string): Promise<string | null> {
+	const local = loadConfigStore(arcRoot).get(`alias.${name}`)
+	if (local !== undefined) return local
+	const git = findRealGit()
+	if (!git) return null
+	const p = Bun.spawn([git, "config", "--get", `alias.${name}`], {
+		cwd,
+		stdout: "pipe",
+		stderr: "ignore",
+		stdin: "ignore",
+	})
+	const [out, code] = await Promise.all([new Response(p.stdout).text(), p.exited])
+	const v = out.trim()
+	return code === 0 && v ? v : null
+}
+
+/** git-style alias-value split: whitespace, honoring '…' and "…" quoting. */
+function splitAlias(value: string): string[] {
+	const out: string[] = []
+	let cur = ""
+	let quote: string | null = null
+	let started = false
+	for (const ch of value) {
+		if (quote) {
+			if (ch === quote) quote = null
+			else cur += ch
+		} else if (ch === "'" || ch === '"') {
+			quote = ch
+			started = true
+		} else if (ch === " " || ch === "\t") {
+			if (started || cur) out.push(cur)
+			cur = ""
+			started = false
+		} else cur += ch
+	}
+	if (started || cur) out.push(cur)
+	return out
+}
+
 async function main(): Promise<void> {
 	const argv = Bun.argv.slice(2)
 
@@ -156,32 +197,53 @@ async function main(): Promise<void> {
 	const tree = detectTree(effCwd)
 	if (!tree || tree.kind === "git") await execRealGit(argv)
 
-	const d = dispatch(paths, cmd)
+	let effCmd = cmd
+	let d = dispatch(paths, effCmd)
+
+	// alias expansion, git semantics: aliases never shadow real subcommands,
+	// and an unknown first token checks alias.<name> before erroring
+	// (acceptance finding: `git br` must resolve the user's br=branch alias)
+	for (let depth = 0; d.kind === "unknown" && !GIT_SUBCOMMANDS.has(effCmd[0]!) && depth < 10; depth++) {
+		const value = await aliasValue(effCmd[0]!, effCwd, tree!.root)
+		if (value === null) {
+			// byte-shaped like real git; exit 1 like real git
+			process.stderr.write(`git: '${effCmd[0]}' is not a git command. See 'git --help'.\n`)
+			process.exit(1)
+		}
+		if (value.startsWith("!")) {
+			// shell alias: sh at the tree root with args appended, GIT_PREFIX
+			// pointing back at the invocation subdir (git semantics)
+			const prefix = effCwd === tree!.root ? "" : effCwd.startsWith(tree!.root + "/") ? effCwd.slice(tree!.root.length + 1) + "/" : ""
+			const p = Bun.spawn(["/bin/sh", "-c", `${value.slice(1)} "$@"`, value.slice(1), ...effCmd.slice(1)], {
+				cwd: tree!.root,
+				stdio: ["inherit", "inherit", "inherit"],
+				env: { ...process.env, GIT_PREFIX: prefix } as Record<string, string>,
+			})
+			process.exit(await p.exited)
+		}
+		effCmd = [...splitAlias(value), ...effCmd.slice(1)]
+		d = dispatch(paths, effCmd)
+	}
 
 	if (d.kind === "ambiguous") {
 		process.stderr.write(`fatal: arc-git: internal dispatch ambiguity: ${d.names.join(" vs ")}\n`)
 		process.exit(128)
 	}
 	if (d.kind === "unknown") {
-		if (!GIT_SUBCOMMANDS.has(cmd[0]!)) {
-			// byte-shaped like real git; exit 1 like real git
-			process.stderr.write(`git: '${cmd[0]}' is not a git command. See 'git --help'.\n`)
-			process.exit(1)
-		}
 		if (process.env.ARC_GIT === "static") {
 			// no-learn mode: shell completion helpers and other unattended
 			// callers must never block on a learn episode
-			process.stderr.write(`fatal: arc-git: no translation for '${cmd.join(" ")}' (learning disabled: ARC_GIT=static)\n`)
+			process.stderr.write(`fatal: arc-git: no translation for '${effCmd.join(" ")}' (learning disabled: ARC_GIT=static)\n`)
 			process.exit(1)
 		}
-		await triggerLearning(cmd, argv, effCwd, tree!.root)
+		await triggerLearning(effCmd, argv, effCwd, tree!.root)
 		process.exit(1) // unreachable — triggerLearning never returns
 	}
 
 	const { ctx, configSnapshot } = makeCtx(effCwd, tree!.root, noPager)
 	const res = await d.path.run(d.args, ctx)
 	persistCtx(ctx, configSnapshot)
-	await emit(res, !noPager && PAGED.has(cmd[0]!))
+	await emit(res, !noPager && PAGED.has(effCmd[0]!))
 }
 
 await main()
