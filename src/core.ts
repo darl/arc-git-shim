@@ -271,10 +271,11 @@ export function parseSpec(c: CompiledSpec, argv: string[]): Args | null {
 
 // ---------------------------------------------------------------- dispatcher
 
-/** Strip git global flags the shim handles itself; return [argv, effectiveCwd]. */
-export function stripGlobalFlags(argv: string[], cwd: string): [string[], string] {
+/** Strip git global flags the shim handles itself; return [argv, effectiveCwd, noPager]. */
+export function stripGlobalFlags(argv: string[], cwd: string): [string[], string, boolean] {
 	const out: string[] = []
 	let effCwd = cwd
+	let noPager = false
 	for (let i = 0; i < argv.length; i++) {
 		const a = argv[i]!
 		if (out.length === 0) {
@@ -287,11 +288,15 @@ export function stripGlobalFlags(argv: string[], cwd: string): [string[], string
 				i++ // per-invocation config: swallowed (config store is shim-local)
 				continue
 			}
-			if (a === "--no-pager" || a === "--no-optional-locks" || a === "--literal-pathspecs") continue
+			if (a === "--no-pager" || a === "-P") {
+				noPager = true
+				continue
+			}
+			if (a === "--no-optional-locks" || a === "--literal-pathspecs") continue
 		}
 		out.push(a)
 	}
-	return [out, effCwd]
+	return [out, effCwd, noPager]
 }
 
 export type Dispatch =
@@ -380,6 +385,32 @@ export const isRemoteAlias = (name: string): boolean => name === "arcadia" || na
 /** arc info --json reports a bare 40-hex commit hash in the branch field when
  * HEAD is detached (and may omit the field entirely). */
 export const isDetached = (branch: string | undefined): boolean => !branch || /^[0-9a-f]{40}$/.test(branch)
+
+/** Expand one git-diff rev-ish argument into arc diff args.
+ * "x...y" → merge-base(x,y) y (git three-dot); "x..y" → x y (open ends = HEAD).
+ * vsWorktree (lone rev diffed against the working tree) → merge-base(rev, HEAD):
+ * trunk in arcadia moves constantly, so a literal `git diff trunk` would drown
+ * the caller's changes in unrelated fresh trunk commits. When rev is an
+ * ancestor of HEAD the merge-base IS rev — identical to git. Pathspecs fail
+ * merge-base and pass through literally. */
+export async function expandDiffRev(ctx: Ctx, arg: string, vsWorktree: boolean): Promise<string[] | ExecResult> {
+	const range = !arg.startsWith(".") && arg.includes("..")
+	if (range && arg.includes("...")) {
+		const [x, y] = arg.split("...")
+		const mb = await ctx.arc(["merge-base", x!, y || "HEAD"])
+		if (mb.code !== 0) return mb
+		return [mb.stdout.trim(), y || "HEAD"]
+	}
+	if (range) {
+		const [x, y] = arg.split("..")
+		return [x!, y || "HEAD"]
+	}
+	if (vsWorktree) {
+		const mb = await ctx.arc(["merge-base", arg, "HEAD"])
+		return mb.code === 0 ? [mb.stdout.trim()] : [arg]
+	}
+	return [arg]
+}
 
 /** Map an arc status --json entry status word to a git XY letter. */
 export const statusLetter = (word: string): string =>

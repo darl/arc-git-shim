@@ -1,10 +1,11 @@
 // Prose-tier diff: plain / paths / --stat / --cached / -B / rev ranges.
 // arc diff --git emits git-compatible unified diffs; passthrough.
-// Range args: "a..b" splits to two revs; "a...b" (merge-base form) resolves
-// the base via arc merge-base first. A lone arg containing ".." is treated as
-// a range unless it starts with "." (heuristic — pathspecs with ".." inside
-// are vanishingly rare from agents; documented v1 tradeoff).
-import { definePath, ok } from "../core"
+// Rev args go through expandDiffRev: ranges split ("a...b" via merge-base),
+// and a first lone arg diffs the working tree from merge-base(rev, HEAD) —
+// pathspecs fail the merge-base probe and pass through literally. An arg
+// containing ".." is treated as a range unless it starts with "." (heuristic —
+// pathspecs with ".." inside are vanishingly rare from agents; v1 tradeoff).
+import { definePath, expandDiffRev, isExecResult, ok } from "../core"
 
 export default definePath({
 	name: "diff-prose",
@@ -16,17 +17,14 @@ export default definePath({
 		if (args.flags.has("--stat")) arcArgs.push("--stat")
 		if (args.flags.has("--cached") || args.flags.has("--staged")) arcArgs.push("--cached")
 		if (args.flags.has("-B") || args.flags.has("--base")) arcArgs.push("-B")
+		// merge-base lens applies to the first arg only, and only for plain
+		// worktree diffs (--cached/-B already diff against a computed base)
+		let vsWorktree = !args.flags.has("--cached") && !args.flags.has("--staged") && !args.flags.has("-B") && !args.flags.has("--base")
 		for (const a of args.list.args ?? []) {
-			const range = !a.startsWith(".") && a.includes("..")
-			if (range && a.includes("...")) {
-				const [x, y] = a.split("...")
-				const mb = await ctx.arc(["merge-base", x!, y!])
-				if (mb.code !== 0) return mb
-				arcArgs.push(mb.stdout.trim(), y!)
-			} else if (range) {
-				const [x, y] = a.split("..")
-				arcArgs.push(x!, y!)
-			} else arcArgs.push(a)
+			const t = await expandDiffRev(ctx, a, vsWorktree)
+			if (isExecResult(t)) return t
+			arcArgs.push(...t)
+			vsWorktree = false
 		}
 		const r = await ctx.arc(arcArgs)
 		return r.code === 0 ? ok(r.stdout) : r
@@ -40,6 +38,24 @@ export default definePath({
 				"diff --git": { stdout: "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1 +1 @@\n-x\n+y\n" },
 			},
 			want: { stdout: "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1 +1 @@\n-x\n+y\n", code: 0 },
+		},
+		{
+			name: "lone rev uses merge-base (trunk moves under you)",
+			argv: ["diff", "trunk"],
+			arcReplies: {
+				"merge-base trunk HEAD": { stdout: "c79064cbea91ca389afe153a347d588452fe50df\n" },
+				"diff --git c79064cbea91ca389afe153a347d588452fe50df": { stdout: "diff --git a/j b/j\n" },
+			},
+			want: { stdout: "diff --git a/j b/j\n", code: 0 },
+		},
+		{
+			name: "lone pathspec passes through (merge-base probe fails)",
+			argv: ["diff", "junk/darl/x.txt"],
+			arcReplies: {
+				"merge-base junk/darl/x.txt HEAD": { stderr: "Error: unknown revision\n", code: 1 },
+				"diff --git junk/darl/x.txt": { stdout: "diff --git a/junk/darl/x.txt b/junk/darl/x.txt\n" },
+			},
+			want: { stdout: "diff --git a/junk/darl/x.txt b/junk/darl/x.txt\n", code: 0 },
 		},
 		{
 			name: "range a..b splits",

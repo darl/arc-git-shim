@@ -57,9 +57,10 @@ describe("spec grammar", () => {
 	})
 
 	test("global flag stripping", () => {
-		expect(stripGlobalFlags(["-C", "/x", "status"], "/y")).toEqual([["status"], "/x"])
-		expect(stripGlobalFlags(["-c", "core.quotePath=false", "diff"], "/y")).toEqual([["diff"], "/y"])
-		expect(stripGlobalFlags(["--no-pager", "log"], "/y")).toEqual([["log"], "/y"])
+		expect(stripGlobalFlags(["-C", "/x", "status"], "/y")).toEqual([["status"], "/x", false])
+		expect(stripGlobalFlags(["-c", "core.quotePath=false", "diff"], "/y")).toEqual([["diff"], "/y", false])
+		expect(stripGlobalFlags(["--no-pager", "log"], "/y")).toEqual([["log"], "/y", true])
+		expect(stripGlobalFlags(["-P", "log"], "/y")).toEqual([["log"], "/y", true])
 	})
 })
 

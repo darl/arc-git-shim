@@ -5,6 +5,7 @@
 import { existsSync, renameSync } from "node:fs"
 import { INSTALLED_GIT, PREV_GIT } from "./build"
 import { checkCollisions, dispatch, stripGlobalFlags } from "./core"
+import type { ExecResult } from "./core"
 import { detectTree, makeCtx, persistCtx } from "./ctx"
 import { execRealGit } from "./gitexec"
 import { runAll } from "./harness"
@@ -70,6 +71,32 @@ function rollback(): never {
 	process.exit(0)
 }
 
+// git pages these subcommands when stdout is a TTY; the shim mirrors that
+// (acceptance finding: `git log` must open $PAGER like real git does)
+const PAGED = new Set(["log", "diff", "show", "branch"])
+
+async function emit(res: ExecResult, paged: boolean): Promise<never> {
+	if (res.stdout) {
+		const pager = process.env.GIT_PAGER ?? process.env.PAGER ?? "less"
+		if (paged && res.code === 0 && process.stdout.isTTY && pager && pager !== "cat") {
+			// LESS=FRX like git: quit if it fits one screen, raw colors, no init
+			const p = Bun.spawn(["/bin/sh", "-c", pager], {
+				stdin: "pipe",
+				stdout: "inherit",
+				stderr: "inherit",
+				env: { ...process.env, LESS: process.env.LESS ?? "FRX" } as Record<string, string>,
+			})
+			try {
+				p.stdin.write(res.stdout)
+				await p.stdin.end()
+			} catch {} // pager quit early (q) — not an error
+			await p.exited
+		} else process.stdout.write(res.stdout)
+	}
+	if (res.stderr) process.stderr.write(res.stderr)
+	process.exit(res.code)
+}
+
 async function main(): Promise<void> {
 	const argv = Bun.argv.slice(2)
 
@@ -97,7 +124,7 @@ async function main(): Promise<void> {
 	// layer-1 kill-switch: behave as a pure alias of real git
 	if (process.env.ARC_GIT === "off") await execRealGit(argv)
 
-	const [cmd, effCwd] = stripGlobalFlags(argv, process.cwd())
+	const [cmd, effCwd, noPager] = stripGlobalFlags(argv, process.cwd())
 
 	// bare `git`, `git --version`, `git --help`, … → real git handles these
 	if (cmd.length === 0 || cmd[0]!.startsWith("-")) await execRealGit(argv)
@@ -119,9 +146,7 @@ async function main(): Promise<void> {
 	const { ctx, configSnapshot } = makeCtx(effCwd, tree!.root)
 	const res = await d.path.run(d.args, ctx)
 	persistCtx(ctx, configSnapshot)
-	if (res.stdout) process.stdout.write(res.stdout)
-	if (res.stderr) process.stderr.write(res.stderr)
-	process.exit(res.code)
+	await emit(res, !noPager && PAGED.has(cmd[0]!))
 }
 
 await main()

@@ -1,7 +1,8 @@
 // orca: diff [-z] --numstat -M -C [<a> <b>] → "added\tdeleted\tpath" per file.
 // arc has no --numstat; the shim parses one arc diff --git unified diff and
 // counts +/- lines per file (binary files → "-\t-\tpath", like git).
-import { definePath, ok } from "../core"
+// A lone rev diffs the working tree from merge-base(rev, HEAD) — expandDiffRev.
+import { definePath, expandDiffRev, isExecResult, ok } from "../core"
 
 function numstatFromUnified(diff: string): { add: number | "-"; del: number | "-"; path: string }[] {
 	const out: { add: number | "-"; del: number | "-"; path: string }[] = []
@@ -36,7 +37,11 @@ export default definePath({
 
 	async run(args, ctx) {
 		const arcArgs = ["diff", "--git"]
-		if (args.pos.a !== undefined) arcArgs.push(args.pos.a)
+		if (args.pos.a !== undefined) {
+			const t = await expandDiffRev(ctx, args.pos.a, args.pos.b === undefined)
+			if (isExecResult(t)) return t
+			arcArgs.push(...t)
+		}
 		if (args.pos.b !== undefined) arcArgs.push(args.pos.b)
 		const r = await ctx.arc(arcArgs, { cwd: ctx.arcRoot })
 		if (r.code !== 0) return r
@@ -56,6 +61,17 @@ export default definePath({
 				},
 			},
 			want: { stdout: "2\t1\tfoo.go\n", code: 0 },
+		},
+		{
+			name: "lone rev uses merge-base",
+			argv: ["diff", "--numstat", "trunk"],
+			arcReplies: {
+				"merge-base trunk HEAD": { stdout: "c79064cbea91ca389afe153a347d588452fe50df\n" },
+				"diff --git c79064cbea91ca389afe153a347d588452fe50df": {
+					stdout: "diff --git a/foo.go b/foo.go\n--- a/foo.go\n+++ b/foo.go\n@@ -1 +1 @@\n+one\n",
+				},
+			},
+			want: { stdout: "1\t0\tfoo.go\n", code: 0 },
 		},
 		{
 			name: "binary file dashes, NUL-delimited",
