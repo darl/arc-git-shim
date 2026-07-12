@@ -9,6 +9,7 @@ import { detectTree, makeCtx, persistCtx, SHIM_HOME } from "./ctx"
 import { execRealGit } from "./gitexec"
 import { checkCollisions } from "./core"
 import { runAll } from "./harness"
+import { triggerLearning } from "./learning"
 import { paths } from "./paths-index"
 
 const VERSION = "0.1.0"
@@ -28,6 +29,42 @@ async function selftest(): Promise<never> {
 	process.exit(failed ? 1 : 0)
 }
 
+/** Hand-run seed generation: `git arc-shim learn [--model p/m] -- <git args>`.
+ * Same episode as a live learn, but: full pi stream, NO auto-commit (review
+ * mode), no negative cache. Run it inside a real arc tree. */
+async function handLearn(rest: string[]): Promise<never> {
+	let model: string | undefined
+	const sep = rest.indexOf("--")
+	const pre = sep === -1 ? rest : rest.slice(0, sep)
+	const cmd = sep === -1 ? [] : rest.slice(sep + 1)
+	const mi = pre.indexOf("--model")
+	if (mi !== -1) model = pre[mi + 1]
+	if (!cmd.length) {
+		console.error("usage: git arc-shim learn [--model provider/model] -- <git args>")
+		process.exit(2)
+	}
+	const tree = detectTree(process.cwd())
+	if (!tree || tree.kind !== "arc") {
+		console.error("arc-git: run hand learns inside an arc tree (probing needs one)")
+		process.exit(1)
+	}
+	let srcDir: string | undefined
+	try {
+		srcDir = JSON.parse(await Bun.file(join(SHIM_HOME, "config.json")).text()).srcDir
+	} catch {}
+	if (!srcDir) {
+		console.error("arc-git: ~/.arc-git/config.json missing — run `bun run install-shim` first")
+		process.exit(1)
+	}
+	const payload = JSON.stringify({ argv: cmd, callCwd: process.cwd(), arcRoot: tree.root, mode: "hand", model })
+	const p = Bun.spawn(["bun", join(srcDir, "src", "learner.ts"), "--json", payload], {
+		cwd: srcDir,
+		stdio: ["inherit", "inherit", "inherit"],
+		env: { ...process.env, ARC_GIT: "off" } as Record<string, string>,
+	})
+	process.exit(await p.exited)
+}
+
 function rollback(): never {
 	const cur = join(SHIM_HOME, "bin", "git")
 	const prev = join(SHIM_HOME, "bin", "git.prev")
@@ -43,15 +80,15 @@ function rollback(): never {
 async function main(): Promise<void> {
 	const argv = Bun.argv.slice(2)
 
-	// layer-1 kill-switch: behave as a pure alias of real git
-	if (process.env.ARC_GIT === "off") await execRealGit(argv)
-
-	// shim builtins (never git commands)
+	// shim builtins first — they are never git commands, so the kill-switch
+	// must not divert them (the learner runs its gate with ARC_GIT=off, and
+	// the compiled selftest has to work in that environment)
 	if (argv[0] === "--arc-git-selftest") await selftest()
 	if (argv[0] === "arc-shim") {
 		const sub = argv[1]
 		if (sub === "selftest") await selftest()
 		if (sub === "rollback") rollback()
+		if (sub === "learn") await handLearn(argv.slice(2))
 		if (sub === "paths") {
 			for (const p of paths) console.log(`${p.name.padEnd(32)} ${p.spec}`)
 			process.exit(0)
@@ -60,9 +97,12 @@ async function main(): Promise<void> {
 			console.log(`arc-git ${VERSION}`)
 			process.exit(0)
 		}
-		console.error("arc-git builtins: selftest | rollback | paths | version")
+		console.error("arc-git builtins: selftest | rollback | paths | version | learn [--model p/m] -- <git args>")
 		process.exit(sub ? 1 : 0)
 	}
+
+	// layer-1 kill-switch: behave as a pure alias of real git
+	if (process.env.ARC_GIT === "off") await execRealGit(argv)
 
 	const [cmd, effCwd] = stripGlobalFlags(argv, process.cwd())
 
@@ -80,10 +120,8 @@ async function main(): Promise<void> {
 		process.exit(128)
 	}
 	if (d.kind === "unknown") {
-		// learning trigger — the pi loop lands in the next ticket; until then
-		// this is the honest-fatal contract shape
-		process.stderr.write(`fatal: arc-git: no translation for '${cmd.join(" ")}' (learning not wired yet)\n`)
-		process.exit(1)
+		await triggerLearning(cmd, argv, effCwd, tree!.root)
+		process.exit(1) // unreachable — triggerLearning never returns
 	}
 
 	const res = await d.path.run(d.args, ctx)

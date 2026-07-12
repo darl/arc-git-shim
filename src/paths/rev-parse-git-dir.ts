@@ -4,17 +4,6 @@
 // The shim only dispatches inside an arc tree, so this is pure path math —
 // no arc call needed.
 
-// Workaround: the learner sets ARC_GIT=off so its own subprocesses hit real
-// git, and the gate inherits that env when spawning the compiled selftest.
-// main.ts checks ARC_GIT=off before dispatching shim builtins, so the
-// selftest is diverted to real git (exit 129).  Path modules are imported
-// before main() runs, so we undo the kill-switch here — but ONLY for the
-// selftest invocation, leaving the normal ARC_GIT=off bypass intact.
-{
-	const a = Bun.argv.slice(2)
-	if (a[0] === "--arc-git-selftest") delete process.env.ARC_GIT
-}
-
 import { definePath, ok } from "../core"
 
 /** Relative path from `from` to `to` (both absolute, no trailing slash). */
