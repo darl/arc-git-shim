@@ -24,7 +24,19 @@ export function saveConfigStore(arcRoot: string, config: Map<string, string>): v
 	writeFileSync(f, JSON.stringify(Object.fromEntries(config), null, "\t") + "\n")
 }
 
-export async function runArc(args: string[], cwd: string): Promise<ExecResult> {
+export async function runArc(
+	args: string[],
+	cwd: string,
+	tty?: { interactive?: boolean; noPager?: boolean },
+): Promise<ExecResult> {
+	if (tty?.interactive && process.stdout.isTTY) {
+		// unbounded prose passthrough: arc streams to the terminal and pages
+		// itself (buffering bare `arc log` = the whole trunk history)
+		const env: Record<string, string> = { ...process.env, ARC_NO_AUTO_UPDATE: "1" } as Record<string, string>
+		if (tty.noPager) env.PAGER = "cat" // git --no-pager: stream, don't page
+		const proc = Bun.spawn(["arc", ...args], { cwd, stdio: ["inherit", "inherit", "inherit"], env })
+		return { stdout: "", stderr: "", code: await proc.exited }
+	}
 	const proc = Bun.spawn(["arc", ...args], {
 		cwd,
 		stdout: "pipe",
@@ -40,14 +52,14 @@ export async function runArc(args: string[], cwd: string): Promise<ExecResult> {
 	return { stdout, stderr, code }
 }
 
-export function makeCtx(cwd: string, arcRoot: string): { ctx: Ctx; configSnapshot: string } {
+export function makeCtx(cwd: string, arcRoot: string, noPager = false): { ctx: Ctx; configSnapshot: string } {
 	const config = loadConfigStore(arcRoot)
 	const configSnapshot = JSON.stringify([...config.entries()].sort())
 	const ctx: Ctx = {
 		cwd,
 		arcRoot,
 		config,
-		arc: (args: string[], opts?: ArcOpts) => runArc(args, opts?.cwd ?? cwd),
+		arc: (args: string[], opts?: ArcOpts) => runArc(args, opts?.cwd ?? cwd, { interactive: opts?.interactive, noPager }),
 	}
 	return { ctx, configSnapshot }
 }

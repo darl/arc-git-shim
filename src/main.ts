@@ -143,7 +143,7 @@ async function main(): Promise<void> {
 		process.exit(1) // unreachable — triggerLearning never returns
 	}
 
-	const { ctx, configSnapshot } = makeCtx(effCwd, tree!.root)
+	const { ctx, configSnapshot } = makeCtx(effCwd, tree!.root, noPager)
 	const res = await d.path.run(d.args, ctx)
 	persistCtx(ctx, configSnapshot)
 	await emit(res, !noPager && PAGED.has(cmd[0]!))

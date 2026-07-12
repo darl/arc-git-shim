@@ -34,6 +34,11 @@ export interface ExecResult {
 export interface ArcOpts {
 	/** Run arc at this cwd instead of ctx.cwd (e.g. ctx.arcRoot for `arc show`). */
 	cwd?: string
+	/** Unbounded prose passthrough (e.g. bare `git log`): when the shim's
+	 * stdout is a TTY, hand arc the terminal so it streams and pages itself —
+	 * capturing would buffer the entire trunk history before showing anything.
+	 * The returned stdout is empty in that case (it went to the terminal). */
+	interactive?: boolean
 }
 
 export interface Ctx {
