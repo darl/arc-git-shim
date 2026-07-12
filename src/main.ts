@@ -75,6 +75,30 @@ function rollback(): never {
 // (acceptance finding: `git log` must open $PAGER like real git does)
 const PAGED = new Set(["log", "diff", "show", "branch"])
 
+// Real git subcommands. An unknown FIRST token (a typo, or a partial like
+// "br" leaked by shell tab-completion helpers) gets git's own instant error —
+// learning is only for unknown SHAPES of real commands, never for
+// non-commands (acceptance finding: a stray <tab> froze the shell on a
+// learn episode for `git br`).
+// prettier-ignore
+const GIT_SUBCOMMANDS = new Set([
+	"add", "am", "annotate", "apply", "archive", "bisect", "blame", "branch", "bundle",
+	"cat-file", "check-attr", "check-ignore", "check-mailmap", "check-ref-format",
+	"checkout", "cherry", "cherry-pick", "clean", "clone", "commit", "commit-graph",
+	"commit-tree", "config", "count-objects", "credential", "describe", "diff",
+	"diff-files", "diff-index", "diff-tree", "difftool", "fast-export", "fast-import",
+	"fetch", "filter-branch", "for-each-ref", "format-patch", "fsck", "gc", "grep",
+	"hash-object", "help", "init", "log", "ls-files", "ls-remote", "ls-tree",
+	"maintenance", "merge", "merge-base", "merge-file", "merge-tree", "mergetool",
+	"mktag", "mktree", "mv", "name-rev", "notes", "pack-refs", "pull", "push",
+	"range-diff", "read-tree", "rebase", "reflog", "remote", "repack", "replace",
+	"rerere", "reset", "restore", "rev-list", "rev-parse", "revert", "rm", "send-email",
+	"shortlog", "show", "show-branch", "show-ref", "sparse-checkout", "stash", "status",
+	"stripspace", "submodule", "switch", "symbolic-ref", "tag", "unpack-file",
+	"update-index", "update-ref", "var", "verify-commit", "verify-pack", "verify-tag",
+	"whatchanged", "worktree", "write-tree",
+])
+
 async function emit(res: ExecResult, paged: boolean): Promise<never> {
 	if (res.stdout) {
 		const pager = process.env.GIT_PAGER ?? process.env.PAGER ?? "less"
@@ -139,6 +163,17 @@ async function main(): Promise<void> {
 		process.exit(128)
 	}
 	if (d.kind === "unknown") {
+		if (!GIT_SUBCOMMANDS.has(cmd[0]!)) {
+			// byte-shaped like real git; exit 1 like real git
+			process.stderr.write(`git: '${cmd[0]}' is not a git command. See 'git --help'.\n`)
+			process.exit(1)
+		}
+		if (process.env.ARC_GIT === "static") {
+			// no-learn mode: shell completion helpers and other unattended
+			// callers must never block on a learn episode
+			process.stderr.write(`fatal: arc-git: no translation for '${cmd.join(" ")}' (learning disabled: ARC_GIT=static)\n`)
+			process.exit(1)
+		}
 		await triggerLearning(cmd, argv, effCwd, tree!.root)
 		process.exit(1) // unreachable — triggerLearning never returns
 	}

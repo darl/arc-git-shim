@@ -28,6 +28,14 @@ const payload: LearnPayload = JSON.parse(process.argv[process.argv.indexOf("--js
 const hand = payload.mode === "hand"
 const started = Date.now()
 
+// the wall-clock check below runs only BETWEEN iterations — a stalled pi call
+// inside one iteration would otherwise keep this process (and the learn lock)
+// alive indefinitely (acceptance finding: an orphaned learner survived ^C)
+setTimeout(() => {
+	process.stderr.write("arc-git: learning failed: hard wall-clock limit\n")
+	process.exit(1)
+}, MAX_WALL_MS * 1.25)
+
 mkdirSync(join(SHIM_HOME, "logs"), { recursive: true })
 const logFile = join(SHIM_HOME, "logs", `learn-${new Date().toISOString().replace(/[:.]/g, "-")}.log`)
 const log = (s: string) => appendFileSync(logFile, s.endsWith("\n") ? s : s + "\n")
