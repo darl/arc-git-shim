@@ -1,16 +1,15 @@
-// Build + install pipeline (same gate the learner will use):
-//   gen → typecheck → bun test → compile → SELF-TEST THE COMPILED ARTIFACT →
-//   atomic swap into ~/.arc-git/bin/git (previous kept as git.prev)
+// Build + install pipeline — the SAME gate and swap the learner uses (both
+// import src/build.ts): gen → typecheck → bun test → compile → SELF-TEST THE
+// COMPILED ARTIFACT → atomic swap into ~/.arc-git/bin/git.
 // Prints the PATH line to add; never edits shell config itself.
-import { chmodSync, copyFileSync, existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs"
-import { homedir } from "node:os"
+import { readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { BIN_DIR, gateSteps, INSTALLED_GIT, installBinary } from "../src/build"
+import { SHIM_HOME } from "../src/ctx"
 
 const ROOT = join(import.meta.dir, "..")
-const HOME = process.env.ARC_GIT_HOME ?? join(homedir(), ".arc-git")
-const BIN = join(HOME, "bin")
 
-const run = async (cmd: string[], label: string) => {
+for (const [label, cmd] of gateSteps(ROOT)) {
 	console.log(`>> ${label}`)
 	const p = Bun.spawn(cmd, { cwd: ROOT, stdio: ["ignore", "inherit", "inherit"] })
 	if ((await p.exited) !== 0) {
@@ -19,26 +18,19 @@ const run = async (cmd: string[], label: string) => {
 	}
 }
 
-await run(["bun", "scripts/gen.ts"], "codegen + collision gate")
-await run(["bun", "x", "tsc", "--noEmit"], "typecheck")
-await run(["bun", "test"], "tests")
-await run(["bun", "build", "--compile", "--minify", "src/main.ts", "--outfile", "dist/git"], "compile")
-await run([join(ROOT, "dist", "git"), "--arc-git-selftest"], "compiled-artifact selftest")
+installBinary(ROOT)
 
-mkdirSync(BIN, { recursive: true })
-const target = join(BIN, "git")
-const fresh = join(BIN, "git.new")
-copyFileSync(join(ROOT, "dist", "git"), fresh)
-chmodSync(fresh, 0o755)
-if (existsSync(target)) renameSync(target, join(BIN, "git.prev"))
-renameSync(fresh, target) // atomic on same fs; running old inode unaffected
-
+// merge, don't clobber: config.json may carry user keys (e.g. defaultModel)
+let config: Record<string, unknown> = {}
+try {
+	config = JSON.parse(readFileSync(join(SHIM_HOME, "config.json"), "utf8"))
+} catch {}
 writeFileSync(
-	join(HOME, "config.json"),
-	JSON.stringify({ srcDir: ROOT, installedAt: new Date().toISOString() }, null, "\t") + "\n",
+	join(SHIM_HOME, "config.json"),
+	JSON.stringify({ ...config, srcDir: ROOT, installedAt: new Date().toISOString() }, null, "\t") + "\n",
 )
 
-console.log(`\ninstalled: ${target}`)
+console.log(`\ninstalled: ${INSTALLED_GIT}`)
 console.log(`rollback:  git arc-shim rollback   (restores git.prev)`)
-console.log(`\nadd to PATH (fish):  fish_add_path --move ${BIN}`)
+console.log(`\nadd to PATH (fish):  fish_add_path --move ${BIN_DIR}`)
 console.log(`disable:             remove that PATH entry, or ARC_GIT=off for one command`)

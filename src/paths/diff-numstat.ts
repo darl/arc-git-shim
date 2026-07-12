@@ -3,7 +3,7 @@
 // counts +/- lines per file (binary files → "-\t-\tpath", like git).
 import { definePath, ok } from "../core"
 
-export function numstatFromUnified(diff: string): { add: number | "-"; del: number | "-"; path: string }[] {
+function numstatFromUnified(diff: string): { add: number | "-"; del: number | "-"; path: string }[] {
 	const out: { add: number | "-"; del: number | "-"; path: string }[] = []
 	let cur: { add: number; del: number; path: string; binary: boolean } | null = null
 	const flush = () => {
@@ -11,11 +11,14 @@ export function numstatFromUnified(diff: string): { add: number | "-"; del: numb
 		cur = null
 	}
 	for (const line of diff.split("\n")) {
-		const m = line.match(/^diff --git a\/(.*) b\/(.*)$/)
-		if (m) {
-			flush()
-			cur = { add: 0, del: 0, path: m[2]!, binary: false }
-			continue
+		// cheap prefix guard: diffs are large and header lines are rare
+		if (line.startsWith("diff --git ")) {
+			const m = line.match(/^diff --git a\/(.*) b\/(.*)$/)
+			if (m) {
+				flush()
+				cur = { add: 0, del: 0, path: m[2]!, binary: false }
+				continue
+			}
 		}
 		if (!cur) continue
 		if (line.startsWith("Binary files") || line.startsWith("GIT binary patch")) cur.binary = true

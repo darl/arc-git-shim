@@ -7,8 +7,7 @@
 // those fields are placeholders (orca reads XY + path).
 // "changed" is the assumed key for modified-unstaged entries (unverified
 // against real arc — flagged for the acceptance ticket).
-import { arcInfo, countRange, definePath, isExecResult, ok, statusLetter } from "../core"
-import type { ExecResult } from "../core"
+import { arcInfo, arcJson, countRange, definePath, isExecResult, ok, statusLetter } from "../core"
 
 const Z40 = "0".repeat(40)
 
@@ -24,6 +23,13 @@ export default definePath({
 
 	async run(args, ctx) {
 		const uAll = args.flags.has("--untracked-files=all") || args.flags.has("-uall")
+		// this is orca's 3-second poll — start the status call up front and run
+		// the two range counts concurrently; only info→counts is a real dependency
+		const stPromise = arcJson<{ status?: Record<string, Entry[]> }>(
+			ctx,
+			["status", "--json", "-u", uAll ? "all" : "normal"],
+			{ cwd: ctx.arcRoot },
+		)
 		const lines: string[] = []
 
 		if (args.flags.has("--branch")) {
@@ -34,22 +40,15 @@ export default definePath({
 			if (info.remote) {
 				const up = `arcadia/${info.remote}`
 				lines.push(`# branch.upstream ${up}`)
-				const ahead = await countRange(ctx, `${up}..HEAD`)
+				const [ahead, behind] = await Promise.all([countRange(ctx, `${up}..HEAD`), countRange(ctx, `HEAD..${up}`)])
 				if (isExecResult(ahead)) return ahead
-				const behind = await countRange(ctx, `HEAD..${up}`)
 				if (isExecResult(behind)) return behind
 				lines.push(`# branch.ab +${ahead} -${behind}`)
 			}
 		}
 
-		const st = await ctx.arc(["status", "--json", "-u", uAll ? "all" : "normal"], { cwd: ctx.arcRoot })
-		if (st.code !== 0) return st
-		let parsed: { status?: Record<string, Entry[]> }
-		try {
-			parsed = JSON.parse(st.stdout)
-		} catch {
-			return { stdout: "", stderr: "fatal: arc-git: unparseable arc status --json output\n", code: 128 } as ExecResult
-		}
+		const parsed = await stPromise
+		if (isExecResult(parsed)) return parsed
 		const staged = new Map((parsed.status?.staged ?? []).map((e) => [e.path, statusLetter(e.status)]))
 		const changed = new Map((parsed.status?.changed ?? []).map((e) => [e.path, statusLetter(e.status)]))
 		const tracked = [...new Set([...staged.keys(), ...changed.keys()])].sort()

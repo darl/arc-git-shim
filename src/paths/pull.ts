@@ -1,7 +1,7 @@
 // git pull [--rebase|--ff-only] [arcadia [<branch>]] → arc pull [<branch>].
 // REF LENS, pull side: the branch name is LITERAL — never inject
 // users/<login>/ on pull. "origin" accepted as remote alias.
-import { definePath, fail, ok } from "../core"
+import { definePath, fail, isRemoteAlias, ok } from "../core"
 
 export default definePath({
 	name: "pull",
@@ -9,18 +9,18 @@ export default definePath({
 	spec: "pull (--rebase|-r)? --ff-only? (-q|--quiet)? <remote>? <branch>?",
 	refine: (args) =>
 		args.pos.remote === undefined ||
-		["arcadia", "origin"].includes(args.pos.remote) ||
+		isRemoteAlias(args.pos.remote) ||
 		// `git pull trunk`-style single arg: treat the lone token as a branch
 		args.pos.branch === undefined,
 
 	async run(args, ctx) {
 		let branch = args.pos.branch
 		let remote = args.pos.remote
-		if (remote !== undefined && !["arcadia", "origin"].includes(remote) && branch === undefined) {
+		if (remote !== undefined && !isRemoteAlias(remote) && branch === undefined) {
 			branch = remote
 			remote = undefined
 		}
-		if (remote !== undefined && !["arcadia", "origin"].includes(remote))
+		if (remote !== undefined && !isRemoteAlias(remote))
 			return fail(1, `fatal: '${remote}' does not appear to be a git repository\n`)
 		const arcArgs = ["pull"]
 		if (args.flags.has("--rebase") || args.flags.has("-r")) arcArgs.push("--rebase")

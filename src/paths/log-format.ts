@@ -3,7 +3,7 @@
 // git placeholders itself from arc log --json (GOLDEN fields: commit, parents,
 // author, date (ISO), message, branches). Supported: %H %h %s %b %B %an %ae
 // %ad %aI %aE %n %%; anything else → refine rejects → learnable.
-import { definePath, ok, SHORT_HASH_LEN } from "../core"
+import { arcJson, definePath, isExecResult, ok, SHORT_HASH_LEN } from "../core"
 
 const PLACEHOLDER = /%(H|h|s|b|B|an|ae|aE|ad|aI|n|%)/g
 
@@ -19,7 +19,7 @@ interface LogEntry {
 /** ISO-with-offset → git default date: "Tue Jun 30 23:53:19 2026 +0300".
  * The ISO string carries wall-clock time in its own zone — parse textually,
  * never through local time. */
-export function gitDate(iso: string): string {
+function gitDate(iso: string): string {
 	const t = iso.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/)
 	if (!t) return iso
 	const m = iso.match(/([+-]\d{2}):?(\d{2})$/)
@@ -42,17 +42,12 @@ export default definePath({
 		const arcArgs = ["log", "--json"]
 		if (args.pos.num !== undefined) arcArgs.push("-n", args.pos.num)
 		if (args.pos.range !== undefined) arcArgs.push(args.pos.range)
-		const r = await ctx.arc(arcArgs)
-		if (r.code !== 0) return r
-		let entries: LogEntry[]
-		try {
-			entries = JSON.parse(r.stdout)
-		} catch {
-			return { stdout: "", stderr: "fatal: arc-git: unparseable arc log --json output\n", code: 128 }
-		}
+		const entries = await arcJson<LogEntry[]>(ctx, arcArgs)
+		if (isExecResult(entries)) return entries
 		const lines = entries.map((e) => {
-			const subject = e.message.split("\n", 1)[0]!
-			const body = e.message.split("\n").slice(1).join("\n").replace(/^\n+/, "")
+			const nl = e.message.indexOf("\n")
+			const subject = nl === -1 ? e.message : e.message.slice(0, nl)
+			const body = nl === -1 ? "" : e.message.slice(nl + 1).replace(/^\n+/, "")
 			return fmt.replace(PLACEHOLDER, (_, ph: string) => {
 				switch (ph) {
 					case "H": return e.commit

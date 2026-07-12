@@ -12,26 +12,19 @@
 // This process runs with ARC_GIT=off (set below) so every `git` its
 // subprocesses touch — including pi's bash tool and the auto-commit — hits
 // real git, never the shim.
-import { appendFileSync, copyFileSync, chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
+import { appendFileSync, mkdirSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import { gateSteps, installBinary } from "./build"
 import { SHIM_HOME } from "./ctx"
+import { clearNegativeCache, type LearnPayload } from "./learning"
 
 process.env.ARC_GIT = "off"
 
-interface Payload {
-	argv: string[] // the git command (after global-flag stripping)
-	callCwd: string // where it was invoked (inside the arc tree)
-	arcRoot: string
-	mode: "live" | "hand"
-	model?: string // "provider/id" effort dial (hand mode)
-}
-
 const SRC = join(import.meta.dir, "..")
-const BIN = join(SHIM_HOME, "bin")
 const MAX_ITERATIONS = 5
 const MAX_WALL_MS = 8 * 60_000
 
-const payload: Payload = JSON.parse(process.argv[process.argv.indexOf("--json") + 1]!)
+const payload: LearnPayload = JSON.parse(process.argv[process.argv.indexOf("--json") + 1]!)
 const hand = payload.mode === "hand"
 const started = Date.now()
 
@@ -50,14 +43,7 @@ const run = async (cmd: string[], cwd = SRC): Promise<{ code: number; out: strin
 }
 
 async function gate(): Promise<{ green: boolean; report: string }> {
-	const steps: [string, string[]][] = [
-		["codegen+collisions", ["bun", "scripts/gen.ts"]],
-		["typecheck", ["bun", "x", "tsc", "--noEmit"]],
-		["tests", ["bun", "test"]],
-		["compile", ["bun", "build", "--compile", "--minify", "src/main.ts", "--outfile", "dist/git"]],
-		["compiled selftest", [join(SRC, "dist", "git"), "--arc-git-selftest"]],
-	]
-	for (const [label, cmd] of steps) {
+	for (const [label, cmd] of gateSteps(SRC)) {
 		const r = await run(cmd)
 		log(`-- gate ${label}: exit ${r.code}\n${r.out}`)
 		if (r.code !== 0) {
@@ -68,21 +54,16 @@ async function gate(): Promise<{ green: boolean; report: string }> {
 	return { green: true, report: "" }
 }
 
-function swap(): void {
-	mkdirSync(BIN, { recursive: true })
-	const target = join(BIN, "git")
-	const fresh = join(BIN, "git.new")
-	copyFileSync(join(SRC, "dist", "git"), fresh)
-	chmodSync(fresh, 0o755)
-	if (existsSync(target)) renameSync(target, join(BIN, "git.prev"))
-	renameSync(fresh, target)
-}
-
 const listPaths = () => new Set(readdirSync(join(SRC, "src", "paths")).filter((f) => f.endsWith(".ts")))
 
-function specOf(file: string): string | null {
-	const m = readFileSync(join(SRC, "src", "paths", file), "utf8").match(/spec:\s*"([^"]+)"/)
-	return m ? m[1]! : null
+/** Spec of a freshly gated path file — via the module system, not source
+ * scraping (the gate just proved the file compiles). */
+async function specOf(file: string): Promise<string | null> {
+	try {
+		return (await import(join(SRC, "src", "paths", file))).default.spec ?? null
+	} catch {
+		return null
+	}
 }
 
 async function buildPrompt(): Promise<string> {
@@ -152,7 +133,11 @@ async function main(): Promise<void> {
 
 	const authStorage = AuthStorage.create()
 	const modelRegistry = ModelRegistry.create(authStorage)
-	const [prov, id] = (payload.model ?? "darl-glm/glm-5.2").split("/") as [string, string]
+	let configModel: string | undefined
+	try {
+		configModel = JSON.parse(readFileSync(join(SHIM_HOME, "config.json"), "utf8")).defaultModel
+	} catch {}
+	const [prov, id] = (payload.model ?? configModel ?? "darl-glm/glm-5.2").split("/") as [string, string]
 	const model = modelRegistry.find(prov, id)
 	if (!model) {
 		phase(`learning failed: model ${prov}/${id} not available`)
@@ -181,14 +166,13 @@ async function main(): Promise<void> {
 	session.subscribe((e: any) => {
 		try {
 			const t = e?.type ?? ""
-			if (hand) {
-				if (t === "tool_execution_start") process.stderr.write(`  [pi] ${e.toolName ?? "tool"} ${JSON.stringify(e.args ?? {}).slice(0, 160)}\n`)
-				else if (t === "message_final" && e.message?.role === "assistant") {
-					const txt = (e.message.content ?? []).map((c: any) => c.text ?? "").join("")
-					if (txt.trim()) process.stderr.write(`  [pi] ${txt.trim().split("\n")[0]}\n`)
-				}
+			if (t === "tool_execution_start") {
+				log(`[pi tool] ${e.toolName} ${JSON.stringify(e.args ?? {})}`)
+				if (hand) process.stderr.write(`  [pi] ${e.toolName ?? "tool"} ${JSON.stringify(e.args ?? {}).slice(0, 160)}\n`)
+			} else if (hand && t === "message_final" && e.message?.role === "assistant") {
+				const txt = (e.message.content ?? []).map((c: any) => c.text ?? "").join("")
+				if (txt.trim()) process.stderr.write(`  [pi] ${txt.trim().split("\n")[0]}\n`)
 			}
-			if (t === "tool_execution_start") log(`[pi tool] ${e.toolName} ${JSON.stringify(e.args ?? {})}`)
 		} catch {}
 	})
 
@@ -217,14 +201,10 @@ async function main(): Promise<void> {
 	}
 
 	const created = [...listPaths()].filter((f) => !before.has(f))
-	const spec = created.length === 1 ? specOf(created[0]!) : null
+	const spec = created.length === 1 ? await specOf(created[0]!) : null
 	phase(`gate green (${created.join(", ") || "existing paths modified"}) — installing`)
-	swap()
-
-	// negative cache cleared by any successful rebuild (failure-contract design)
-	try {
-		writeFileSync(join(SHIM_HOME, "state.json"), "{}\n")
-	} catch {}
+	installBinary(SRC)
+	clearNegativeCache() // any successful rebuild clears failure memory
 
 	if (!hand) {
 		const msg = `learn: ${spec ?? payload.argv.join(" ")}\n\nTriggered by: git ${payload.argv.join(" ")}\nEpisode log: ${logFile}\n`

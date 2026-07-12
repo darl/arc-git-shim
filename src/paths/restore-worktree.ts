@@ -7,7 +7,8 @@ export default definePath({
 	name: "restore-worktree",
 	summary: "discard working-tree changes via arc checkout",
 	spec: "restore (--worktree|-W)? --source=<src>? (-q|--quiet)? --? <paths...>",
-	refine: (args) => !args.flags.has("--staged") && (args.pos.src === undefined || args.pos.src === "HEAD"),
+	// --staged is undeclared in the spec, so it can never parse into this path
+	refine: (args) => args.pos.src === undefined || args.pos.src === "HEAD",
 
 	async run(args, ctx) {
 		const r = await ctx.arc(["checkout", ...args.list.paths!])

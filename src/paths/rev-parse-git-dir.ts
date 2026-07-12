@@ -4,17 +4,8 @@
 // The shim only dispatches inside an arc tree, so this is pure path math —
 // no arc call needed.
 
+import { posix } from "node:path"
 import { definePath, ok } from "../core"
-
-/** Relative path from `from` to `to` (both absolute, no trailing slash). */
-function relPath(from: string, to: string): string {
-	if (from === to) return ""
-	const fp = from.split("/").filter(Boolean)
-	const tp = to.split("/").filter(Boolean)
-	let i = 0
-	while (i < fp.length && i < tp.length && fp[i] === tp[i]) i++
-	return Array(fp.length - i).fill("..").concat(tp.slice(i)).join("/")
-}
 
 export default definePath({
 	name: "rev-parse-git-dir",
@@ -22,7 +13,7 @@ export default definePath({
 	spec: "rev-parse --git-dir",
 
 	async run(_args, ctx) {
-		const rel = relPath(ctx.cwd, ctx.arcRoot)
+		const rel = posix.relative(ctx.cwd, ctx.arcRoot)
 		return ok(`${rel ? rel + "/" : ""}.arc\n`)
 	},
 

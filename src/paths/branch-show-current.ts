@@ -1,6 +1,6 @@
 // arc has no `branch --show-current`; arc info --json carries the branch.
 // Used in command substitution by agents — stdout must be exact.
-import { arcInfo, definePath, isExecResult, ok } from "../core"
+import { arcInfo, definePath, isDetached, isExecResult, ok } from "../core"
 
 export default definePath({
 	name: "branch-show-current",
@@ -11,8 +11,7 @@ export default definePath({
 		const info = await arcInfo(ctx)
 		if (isExecResult(info)) return info
 		// detached HEAD: git prints nothing, exit 0
-		const b = info.branch ?? ""
-		return ok(/^[0-9a-f]{40}$/.test(b) ? "" : b ? `${b}\n` : "")
+		return ok(isDetached(info.branch) ? "" : `${info.branch}\n`)
 	},
 
 	fixtures: [

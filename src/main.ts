@@ -3,13 +3,12 @@
 //   inside an arc tree   → dispatch to a translation path
 //   unknown shape        → learning trigger (fatal until the loop is wired)
 import { existsSync, renameSync } from "node:fs"
-import { join } from "node:path"
-import { dispatch, stripGlobalFlags } from "./core"
-import { detectTree, makeCtx, persistCtx, SHIM_HOME } from "./ctx"
+import { INSTALLED_GIT, PREV_GIT } from "./build"
+import { checkCollisions, dispatch, stripGlobalFlags } from "./core"
+import { detectTree, makeCtx, persistCtx } from "./ctx"
 import { execRealGit } from "./gitexec"
-import { checkCollisions } from "./core"
 import { runAll } from "./harness"
-import { triggerLearning } from "./learning"
+import { readSrcDir, spawnLearner, triggerLearning } from "./learning"
 import { paths } from "./paths-index"
 
 const VERSION = "0.1.0"
@@ -17,16 +16,16 @@ const VERSION = "0.1.0"
 async function selftest(): Promise<never> {
 	const collisions = checkCollisions(paths)
 	const results = await runAll(paths)
-	let failed = collisions.length
+	let fixtureFails = 0
 	for (const c of collisions) console.error(`FAIL collision: ${c}`)
 	for (const r of results) {
 		if (r.pass) continue
-		failed++
+		fixtureFails++
 		console.error(`FAIL ${r.path}/${r.fixture}: ${r.detail}`)
 		for (const c of r.arcCalls) console.error(`     ${c}`)
 	}
-	console.error(`arc-git selftest: ${results.length - (failed - collisions.length)}/${results.length} fixtures ok, ${collisions.length} collisions`)
-	process.exit(failed ? 1 : 0)
+	console.error(`arc-git selftest: ${results.length - fixtureFails}/${results.length} fixtures ok, ${collisions.length} collisions`)
+	process.exit(fixtureFails || collisions.length ? 1 : 0)
 }
 
 /** Hand-run seed generation: `git arc-shim learn [--model p/m] -- <git args>`.
@@ -48,31 +47,25 @@ async function handLearn(rest: string[]): Promise<never> {
 		console.error("arc-git: run hand learns inside an arc tree (probing needs one)")
 		process.exit(1)
 	}
-	let srcDir: string | undefined
-	try {
-		srcDir = JSON.parse(await Bun.file(join(SHIM_HOME, "config.json")).text()).srcDir
-	} catch {}
+	const srcDir = readSrcDir()
 	if (!srcDir) {
 		console.error("arc-git: ~/.arc-git/config.json missing — run `bun run install-shim` first")
 		process.exit(1)
 	}
-	const payload = JSON.stringify({ argv: cmd, callCwd: process.cwd(), arcRoot: tree.root, mode: "hand", model })
-	const p = Bun.spawn(["bun", join(srcDir, "src", "learner.ts"), "--json", payload], {
-		cwd: srcDir,
-		stdio: ["inherit", "inherit", "inherit"],
-		env: { ...process.env, ARC_GIT: "off" } as Record<string, string>,
-	})
+	const p = spawnLearner(
+		srcDir,
+		{ argv: cmd, callCwd: process.cwd(), arcRoot: tree.root, mode: "hand", model },
+		["inherit", "inherit", "inherit"],
+	)
 	process.exit(await p.exited)
 }
 
 function rollback(): never {
-	const cur = join(SHIM_HOME, "bin", "git")
-	const prev = join(SHIM_HOME, "bin", "git.prev")
-	if (!existsSync(prev)) {
-		console.error(`arc-git: nothing to roll back (${prev} missing)`)
+	if (!existsSync(PREV_GIT)) {
+		console.error(`arc-git: nothing to roll back (${PREV_GIT} missing)`)
 		process.exit(1)
 	}
-	renameSync(prev, cur)
+	renameSync(PREV_GIT, INSTALLED_GIT)
 	console.error("arc-git: rolled back to previous binary")
 	process.exit(0)
 }
@@ -112,7 +105,6 @@ async function main(): Promise<void> {
 	const tree = detectTree(effCwd)
 	if (!tree || tree.kind === "git") await execRealGit(argv)
 
-	const { ctx, configSnapshot } = makeCtx(effCwd, tree!.root)
 	const d = dispatch(paths, cmd)
 
 	if (d.kind === "ambiguous") {
@@ -124,6 +116,7 @@ async function main(): Promise<void> {
 		process.exit(1) // unreachable — triggerLearning never returns
 	}
 
+	const { ctx, configSnapshot } = makeCtx(effCwd, tree!.root)
 	const res = await d.path.run(d.args, ctx)
 	persistCtx(ctx, configSnapshot)
 	if (res.stdout) process.stdout.write(res.stdout)

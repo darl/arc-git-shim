@@ -6,13 +6,47 @@
 // succeeds with zero extra LLM calls.
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { INSTALLED_GIT } from "./build"
 import { SHIM_HOME } from "./ctx"
 
 const LOCK_DIR = join(SHIM_HOME, "learn.lock")
 const STATE = join(SHIM_HOME, "state.json")
-const BIN_GIT = join(SHIM_HOME, "bin", "git")
 const NEG_CACHE_MS = 60 * 60_000
 const LOCK_WAIT_MS = 10 * 60_000
+
+/** The learner invocation contract, shared by live and hand mode. */
+export interface LearnPayload {
+	argv: string[] // the git command (after global-flag stripping)
+	callCwd: string // where it was invoked (inside the arc tree)
+	arcRoot: string
+	mode: "live" | "hand"
+	model?: string // "provider/id" effort dial (hand mode)
+}
+
+/** srcDir of the shim checkout, recorded by scripts/install.ts. */
+export const readSrcDir = (): string | undefined => {
+	try {
+		return JSON.parse(readFileSync(join(SHIM_HOME, "config.json"), "utf8")).srcDir
+	} catch {
+		return undefined
+	}
+}
+
+/** Spawn the source-run learner. ARC_GIT=off so every git its subtree
+ * touches — pi's bash tool, the gate, the auto-commit — hits real git. */
+export const spawnLearner = (srcDir: string, payload: LearnPayload, stdio: ["inherit" | "ignore", "inherit" | "ignore", "inherit"]) =>
+	Bun.spawn(["bun", join(srcDir, "src", "learner.ts"), "--json", JSON.stringify(payload)], {
+		cwd: srcDir,
+		stdio,
+		env: { ...process.env, ARC_GIT: "off" } as Record<string, string>,
+	})
+
+/** Any successful rebuild clears failure memory (failure-contract design). */
+export const clearNegativeCache = (): void => {
+	try {
+		writeFileSync(STATE, "{}\n")
+	} catch {}
+}
 
 const fatal = (msg: string, code = 1): never => {
 	process.stderr.write(msg.endsWith("\n") ? msg : msg + "\n")
@@ -62,11 +96,11 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** Replace this process (in effect) with the installed shim binary. */
 async function reexec(argv: string[], guard: boolean): Promise<never> {
-	if (!existsSync(BIN_GIT))
-		fatal(`fatal: arc-git: learned, but ${BIN_GIT} is missing — run \`bun run install-shim\` in the shim repo`, 128)
+	if (!existsSync(INSTALLED_GIT))
+		fatal(`fatal: arc-git: learned, but ${INSTALLED_GIT} is missing — run \`bun run install-shim\` in the shim repo`, 128)
 	const env: Record<string, string> = { ...process.env } as Record<string, string>
 	if (guard) env.ARC_GIT_REEXEC = "1"
-	const p = Bun.spawn([BIN_GIT, ...argv], { stdio: ["inherit", "inherit", "inherit"], env })
+	const p = Bun.spawn([INSTALLED_GIT, ...argv], { stdio: ["inherit", "inherit", "inherit"], env })
 	process.exit(await p.exited)
 }
 
@@ -84,10 +118,7 @@ export async function triggerLearning(cmd: string[], rawArgv: string[], callCwd:
 		fatal(`fatal: arc-git: no translation for '${key}' (learning failed recently; retries in ~${mins} min)`, 1)
 	}
 
-	let srcDir: string | undefined
-	try {
-		srcDir = JSON.parse(readFileSync(join(SHIM_HOME, "config.json"), "utf8")).srcDir
-	} catch {}
+	const srcDir = readSrcDir()
 	if (!srcDir || !existsSync(join(srcDir, "src", "learner.ts")))
 		fatal(`fatal: arc-git: no translation for '${key}' (learner source not found — is ~/.arc-git/config.json present?)`, 1)
 
@@ -104,12 +135,8 @@ export async function triggerLearning(cmd: string[], rawArgv: string[], callCwd:
 	}
 
 	try {
-		const payload = JSON.stringify({ argv: cmd, callCwd, arcRoot, mode: "live" })
-		const p = Bun.spawn(["bun", join(srcDir!, "src", "learner.ts"), "--json", payload], {
-			cwd: srcDir,
-			stdio: ["ignore", "ignore", "inherit"], // learner phase lines land on our stderr
-			env: { ...process.env, ARC_GIT: "off" } as Record<string, string>,
-		})
+		// learner phase lines land on our stderr
+		const p = spawnLearner(srcDir!, { argv: cmd, callCwd, arcRoot, mode: "live" }, ["ignore", "ignore", "inherit"])
 		const code = await p.exited
 		if (code !== 0) {
 			recordFailure(key)

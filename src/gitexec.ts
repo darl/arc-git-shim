@@ -21,10 +21,10 @@ export function findRealGit(): string | null {
 	const shimHome = safeReal(SHIM_HOME)
 	for (const dir of (process.env.PATH ?? "").split(delimiter)) {
 		if (!dir) continue
+		const cand = join(dir, "git")
+		if (!existsSync(cand)) continue // cheap check first: most PATH dirs have no git
 		const rdir = safeReal(dir)
 		if (rdir === shimHome || rdir.startsWith(shimHome + "/")) continue
-		const cand = join(dir, "git")
-		if (!existsSync(cand)) continue
 		try {
 			if (!(statSync(cand).mode & 0o111)) continue
 		} catch {

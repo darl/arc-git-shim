@@ -4,9 +4,9 @@
 // "[unmounted] mount: ...") — only mounted entries are live worktrees.
 // HEAD + branch per mount via arc info --json executed inside that mount.
 // Branch refs are FULL and EXPLICIT: refs/heads/<name> incl. users/....
-import { definePath, ok } from "../core"
+import { arcJson, definePath, isDetached, isExecResult, ok, SHORT_HASH_LEN } from "../core"
 
-export function parseMountList(out: string): string[] {
+function parseMountList(out: string): string[] {
 	return out
 		.split("\n")
 		.filter((l) => l.startsWith("[mounted"))
@@ -26,27 +26,25 @@ export default definePath({
 		const lst = await ctx.arc(["unmount", "--list"])
 		if (lst.code !== 0) return lst
 		const mounts = parseMountList(lst.stdout)
-		const blocks: string[][] = []
-		for (const mnt of mounts) {
-			const info = await ctx.arc(["info", "--json"], { cwd: mnt })
-			if (info.code !== 0) continue // stale/broken mount: skip, like git prunable entries
-			let branch: string | undefined, hash: string | undefined
-			try {
-				const j = JSON.parse(info.stdout)
-				branch = j.branch
-				hash = j.hash
-			} catch {
-				continue
-			}
-			const lines = [`worktree ${mnt}`, `HEAD ${hash ?? "0".repeat(40)}`]
-			if (branch && !/^[0-9a-f]{40}$/.test(branch)) lines.push(`branch refs/heads/${branch}`)
-			else lines.push("detached")
-			blocks.push(lines)
+		// mounts are independent — probe them all concurrently
+		const infos = await Promise.all(
+			mounts.map((mnt) => arcJson<{ branch?: string; hash?: string }>(ctx, ["info", "--json"], { cwd: mnt })),
+		)
+		const trees: { mnt: string; hash: string; branch?: string }[] = []
+		for (let i = 0; i < mounts.length; i++) {
+			const j = infos[i]!
+			if (isExecResult(j)) continue // stale/broken mount: skip, like git prunable entries
+			trees.push({ mnt: mounts[i]!, hash: j.hash ?? "0".repeat(40), branch: isDetached(j.branch) ? undefined : j.branch })
 		}
 		if (!args.flags.has("--porcelain")) {
 			// human table (loose): path  hash  [branch]
-			return ok(blocks.map((b) => `${b[0]!.slice(9)}  ${b[1]!.slice(5, 17)} [${b[2]!.replace("branch refs/heads/", "")}]\n`).join(""))
+			return ok(trees.map((t) => `${t.mnt}  ${t.hash.slice(0, SHORT_HASH_LEN)} [${t.branch ?? "detached"}]\n`).join(""))
 		}
+		const blocks = trees.map((t) => [
+			`worktree ${t.mnt}`,
+			`HEAD ${t.hash}`,
+			t.branch ? `branch refs/heads/${t.branch}` : "detached",
+		])
 		if (args.flags.has("-z")) return ok(blocks.map((b) => b.join("\0") + "\0\0").join(""))
 		return ok(blocks.map((b) => b.join("\n") + "\n\n").join(""))
 	},

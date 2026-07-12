@@ -49,7 +49,6 @@ export interface Ctx {
 
 /** Result of a successful spec parse, handed to run(). */
 export interface Args {
-	argv: string[]
 	/** Literal flags present. Value flags register their literal (e.g. "-n"). */
 	flags: Set<string>
 	/** Captured single positionals and value-flag values, by <name>. */
@@ -118,7 +117,19 @@ export interface CompiledSpec {
 
 const isShortFlag = (lit: string) => /^-[a-zA-Z]$/.test(lit)
 
+/** Specs are compiled once per process (dispatch + selftest probe the same
+ * strings thousands of times); compilation is pure, so caching is safe. */
+const specCache = new Map<string, CompiledSpec>()
+
 export function compileSpec(spec: string): CompiledSpec {
+	const cached = specCache.get(spec)
+	if (cached) return cached
+	const compiled = compileSpecUncached(spec)
+	specCache.set(spec, compiled)
+	return compiled
+}
+
+function compileSpecUncached(spec: string): CompiledSpec {
 	const parts = spec.trim().split(/\s+/)
 	const subcommand = parts.shift()
 	if (!subcommand || subcommand.startsWith("-")) throw new Error(`spec must start with subcommand: ${spec}`)
@@ -198,7 +209,7 @@ export function parseSpec(c: CompiledSpec, argv: string[]): Args | null {
 	for (let i = 0; i < rest.length; i++) {
 		const a = rest[i]!
 		if (swallowing) {
-			;(list.rest ??= []).push(a)
+			swallow(a)
 			continue
 		}
 		if (sawDashDash || !a.startsWith("-") || a === "-") {
@@ -252,17 +263,10 @@ export function parseSpec(c: CompiledSpec, argv: string[]): Args | null {
 		return null // undeclared flag → no match (fall through to learning)
 	}
 
-	for (const t of c.tokens) {
-		if (!t.required || used.has(t)) continue
-		if (t.kind !== "positional" || !t.variadic) {
-			if (t.kind === "positional" && !t.variadic && pos[t.name!] !== undefined) continue
-			return null
-		}
-		if (!list[t.name!]?.length) return null
-	}
-	// required non-variadic positionals: ensure all consumed
-	for (const t of posToks) if (t.required && !t.variadic && pos[t.name!] === undefined) return null
-	return { argv, flags, pos, list }
+	// every capture routes through used.add, so one check covers flags,
+	// positionals (variadic included) and words alike
+	for (const t of c.tokens) if (t.required && !used.has(t)) return null
+	return { flags, pos, list }
 }
 
 // ---------------------------------------------------------------- dispatcher
@@ -291,18 +295,21 @@ export function stripGlobalFlags(argv: string[], cwd: string): [string[], string
 }
 
 export type Dispatch =
-	| { kind: "matched"; path: Path; args: Args; specificity: number }
+	| { kind: "matched"; path: Path; args: Args }
 	| { kind: "ambiguous"; names: string[] } // codegen-time error in the real shim
 	| { kind: "unknown" } // → learning trigger
 
 export function dispatch(paths: Path[], argv: string[]): Dispatch {
-	let best: { path: Path; args: Args; specificity: number }[] = []
+	let bestSpec = -1
+	let best: { path: Path; args: Args }[] = []
 	for (const p of paths) {
 		const c = compileSpec(p.spec)
 		const args = parseSpec(c, argv)
 		if (!args || (p.refine && !p.refine(args))) continue
-		if (!best[0] || c.specificity > best[0].specificity) best = [{ path: p, args, specificity: c.specificity }]
-		else if (c.specificity === best[0].specificity) best.push({ path: p, args, specificity: c.specificity })
+		if (c.specificity > bestSpec) {
+			bestSpec = c.specificity
+			best = [{ path: p, args }]
+		} else if (c.specificity === bestSpec) best.push({ path: p, args })
 	}
 	if (best.length === 1) return { kind: "matched", ...best[0]! }
 	if (best.length > 1) return { kind: "ambiguous", names: best.map((b) => b.path.name) }
@@ -336,15 +343,20 @@ export interface ArcInfo {
 	[k: string]: unknown
 }
 
-export async function arcInfo(ctx: Ctx): Promise<ArcInfo | ExecResult> {
-	const r = await ctx.arc(["info", "--json"])
+/** Run an arc command and parse its stdout as JSON; failures come back as
+ * the raw ExecResult (nonzero exit) or a git-shaped 128 fatal (bad JSON). */
+export async function arcJson<T>(ctx: Ctx, args: string[], opts?: ArcOpts): Promise<T | ExecResult> {
+	const r = await ctx.arc(args, opts)
 	if (r.code !== 0) return r
 	try {
-		return JSON.parse(r.stdout) as ArcInfo
+		return JSON.parse(r.stdout) as T
 	} catch {
-		return fail(128, `fatal: arc-git: unparseable arc info --json output\n`)
+		return fail(128, `fatal: arc-git: unparseable arc ${args.join(" ")} output\n`)
 	}
 }
+
+export const arcInfo = (ctx: Ctx, opts?: ArcOpts): Promise<ArcInfo | ExecResult> =>
+	arcJson<ArcInfo>(ctx, ["info", "--json"], opts)
 
 export const isExecResult = (v: unknown): v is ExecResult =>
 	typeof v === "object" && v !== null && "code" in v && "stdout" in v
@@ -360,6 +372,14 @@ export async function countRange(ctx: Ctx, range: string): Promise<number | Exec
 /** The asymmetric ref lens, push side: inject users/<login>/ unless present. */
 export const pushLens = (branch: string, login: string): string =>
 	branch.startsWith("users/") || branch === "trunk" ? branch : `users/${login}/${branch}`
+
+/** The only remote is "arcadia"; "origin" is silently accepted as an input
+ * alias (cross-cutting contract — one definition, not per-path literals). */
+export const isRemoteAlias = (name: string): boolean => name === "arcadia" || name === "origin"
+
+/** arc info --json reports a bare 40-hex commit hash in the branch field when
+ * HEAD is detached (and may omit the field entirely). */
+export const isDetached = (branch: string | undefined): boolean => !branch || /^[0-9a-f]{40}$/.test(branch)
 
 /** Map an arc status --json entry status word to a git XY letter. */
 export const statusLetter = (word: string): string =>

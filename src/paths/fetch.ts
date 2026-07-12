@@ -1,22 +1,20 @@
 // git fetch [--prune] [arcadia [<branch>]] → arc fetch [<branch>].
 // Branch names literal (lens never touches the fetch side); --prune accepted
 // and dropped (arc has no prune; unfetch is manual). Exit-code tier.
-import { definePath, fail, ok } from "../core"
+import { definePath, fail, isRemoteAlias, ok } from "../core"
 
 export default definePath({
 	name: "fetch",
 	summary: "arc fetch passthrough; prune accepted and dropped",
 	spec: "fetch (--prune|-p)? --no-tags? (-q|--quiet)? <remote>? <branch>?",
 	refine: (args) => {
-		if (args.pos.remote !== undefined && args.pos.branch !== undefined)
-			return ["arcadia", "origin"].includes(args.pos.remote)
+		if (args.pos.remote !== undefined && args.pos.branch !== undefined) return isRemoteAlias(args.pos.remote)
 		return true
 	},
 
 	async run(args, ctx) {
 		let branch = args.pos.branch ?? args.pos.remote
-		if (branch !== undefined && args.pos.branch === undefined && ["arcadia", "origin"].includes(branch))
-			branch = undefined
+		if (branch !== undefined && args.pos.branch === undefined && isRemoteAlias(branch)) branch = undefined
 		if (branch !== undefined && branch.includes(":"))
 			return fail(128, `fatal: arc-git: refspec '${branch}' not supported; fetch a plain branch name\n`)
 		const arcArgs = ["fetch"]

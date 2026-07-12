@@ -1,7 +1,7 @@
 // git clean -ffdx and friends → arc clean. arc deletes by default (no -f
 // needed); -d/-x/-n map directly. Combined-letter tokens are declared as
 // literals — the strict parser has no combined-flag splitting.
-import { definePath, ok } from "../core"
+import { definePath, fail, ok } from "../core"
 
 const has = (flags: Set<string>, letter: string): boolean =>
 	[...flags].some((f) => !f.startsWith("--") && f.slice(1).includes(letter))
@@ -14,11 +14,7 @@ export default definePath({
 	async run(args, ctx) {
 		// git refuses to clean without -f/-n; mirror that (exit 128)
 		if (!has(args.flags, "f") && !has(args.flags, "n") && !args.flags.has("--dry-run"))
-			return {
-				stdout: "",
-				stderr: "fatal: clean.requireForce defaults to true and neither -i, -n, nor -f given; refusing to clean\n",
-				code: 128,
-			}
+			return fail(128, "fatal: clean.requireForce defaults to true and neither -i, -n, nor -f given; refusing to clean\n")
 		const arcArgs = ["clean"]
 		if (has(args.flags, "d")) arcArgs.push("-d")
 		if (has(args.flags, "x")) arcArgs.push("-x")

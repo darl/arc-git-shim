@@ -9,10 +9,13 @@ export default definePath({
 	spec: "merge-base --is-ancestor <a> <b>",
 
 	async run(args, ctx) {
-		const mb = await ctx.arc(["merge-base", args.pos.a!, args.pos.b!])
-		if (mb.code !== 0) return fail(128, `fatal: Not a valid commit name ${args.pos.a}\n`)
-		const a = await ctx.arc(["rev-parse", args.pos.a!])
-		if (a.code !== 0) return fail(128, `fatal: Not a valid commit name ${args.pos.a}\n`)
+		// independent probes; both are read-only so firing the second before
+		// knowing the first succeeded is safe
+		const [mb, a] = await Promise.all([
+			ctx.arc(["merge-base", args.pos.a!, args.pos.b!]),
+			ctx.arc(["rev-parse", args.pos.a!]),
+		])
+		if (mb.code !== 0 || a.code !== 0) return fail(128, `fatal: Not a valid commit name ${args.pos.a}\n`)
 		return mb.stdout.trim() === a.stdout.trim() ? ok() : fail(1, "")
 	},
 

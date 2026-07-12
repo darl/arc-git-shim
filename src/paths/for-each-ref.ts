@@ -3,7 +3,7 @@
 // {"local":true,"name":"...","current":true?}). Supported placeholders:
 // %(HEAD) %(refname) %(refname:short) and %XX byte escapes (%09 tab, %0a LF).
 // Unsupported placeholders (e.g. %(objectname)) → refine rejects → learnable.
-import { definePath, ok } from "../core"
+import { arcJson, definePath, isExecResult, ok } from "../core"
 
 const SUPPORTED = /^(HEAD|refname|refname:short)$/
 
@@ -24,14 +24,8 @@ export default definePath({
 		(args.pos.pattern === undefined || args.pos.pattern!.startsWith("refs/heads")) && renderable(args.pos.fmt!),
 
 	async run(args, ctx) {
-		const r = await ctx.arc(["branch", "--json"])
-		if (r.code !== 0) return r
-		let entries: BranchEntry[]
-		try {
-			entries = JSON.parse(r.stdout)
-		} catch {
-			return { stdout: "", stderr: "fatal: arc-git: unparseable arc branch --json output\n", code: 128 }
-		}
+		const entries = await arcJson<BranchEntry[]>(ctx, ["branch", "--json"])
+		if (isExecResult(entries)) return entries
 		const locals = entries.filter((e) => e.local).sort((a, b) => (a.name < b.name ? -1 : 1))
 		const lines = locals.map((e) =>
 			args.pos

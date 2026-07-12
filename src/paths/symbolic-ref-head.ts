@@ -1,6 +1,6 @@
 // orca: symbolic-ref --quiet --short HEAD → branch name, or exit 1 when
 // detached (quiet). Without --short git prints refs/heads/<name>.
-import { arcInfo, definePath, fail, isExecResult, ok } from "../core"
+import { arcInfo, definePath, fail, isDetached, isExecResult, ok } from "../core"
 
 export default definePath({
 	name: "symbolic-ref-head",
@@ -12,8 +12,7 @@ export default definePath({
 		const info = await arcInfo(ctx)
 		if (isExecResult(info)) return info
 		const b = info.branch ?? ""
-		const detached = !b || /^[0-9a-f]{40}$/.test(b)
-		if (detached) {
+		if (isDetached(b)) {
 			if (args.flags.has("--quiet") || args.flags.has("-q")) return fail(1, "")
 			return fail(128, "fatal: ref HEAD is not a symbolic ref\n")
 		}

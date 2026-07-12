@@ -8,7 +8,7 @@
 //     names the users/... ref; passthrough preserves that
 //   - --force-with-lease downgrades to arc push -f (accepted contract)
 // Login comes from arc info --json (user_login).
-import { arcInfo, definePath, fail, isExecResult, ok, pushLens } from "../core"
+import { arcInfo, definePath, fail, isExecResult, isRemoteAlias, ok, pushLens } from "../core"
 
 export default definePath({
 	name: "push",
@@ -16,15 +16,13 @@ export default definePath({
 	spec: "push (-u|--set-upstream)? (-f|--force|--force-with-lease)? (-q|--quiet)? <remote>? <refspec>?",
 	refine: (args) => {
 		// single non-remote arg is a refspec; explicit remote must be arcadia/origin
-		if (args.pos.remote !== undefined && args.pos.refspec !== undefined)
-			return ["arcadia", "origin"].includes(args.pos.remote)
+		if (args.pos.remote !== undefined && args.pos.refspec !== undefined) return isRemoteAlias(args.pos.remote)
 		return !(args.pos.remote ?? "").includes(":") // src:dst refspecs → learnable
 	},
 
 	async run(args, ctx) {
 		let refspec = args.pos.refspec ?? args.pos.remote
-		if (refspec !== undefined && args.pos.refspec === undefined && ["arcadia", "origin"].includes(refspec))
-			refspec = undefined
+		if (refspec !== undefined && args.pos.refspec === undefined && isRemoteAlias(refspec)) refspec = undefined
 		const arcArgs = ["push"]
 		if (args.flags.has("-f") || args.flags.has("--force") || args.flags.has("--force-with-lease"))
 			arcArgs.push("--force")

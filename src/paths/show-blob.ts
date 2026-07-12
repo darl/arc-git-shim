@@ -6,9 +6,9 @@
 // ":path" (index blob, orca uses it) has no exact arc equivalent: try
 // arc show :<path> first, fall back to HEAD:<path> — approximation, HEAD
 // version differs from index when the file has staged-but-uncommitted edits.
-import { definePath, ok } from "../core"
+import { definePath, fail, ok } from "../core"
 
-export function rootRelative(revpath: string, cwd: string, root: string): string {
+function rootRelative(revpath: string, cwd: string, root: string): string {
 	const i = revpath.indexOf(":")
 	const rev = revpath.slice(0, i)
 	let p = revpath.slice(i + 1)
@@ -35,11 +35,7 @@ export default definePath({
 			if (r2.code === 0) return ok(r2.stdout)
 		}
 		const p = arg.slice(arg.indexOf(":") + 1)
-		return {
-			stdout: "",
-			stderr: `fatal: path '${p}' does not exist in '${arg.slice(0, arg.indexOf(":")) || "index"}'\n`,
-			code: 128,
-		}
+		return fail(128, `fatal: path '${p}' does not exist in '${arg.slice(0, arg.indexOf(":")) || "index"}'\n`)
 	},
 
 	fixtures: [

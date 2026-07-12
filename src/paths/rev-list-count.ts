@@ -14,9 +14,8 @@ export default definePath({
 		if (args.flags.has("--left-right")) {
 			const [a, b] = range.split("...")
 			if (!a || !b) return fail(128, `fatal: bad revision '${range}'\n`)
-			const left = await countRange(ctx, `${b}..${a}`)
+			const [left, right] = await Promise.all([countRange(ctx, `${b}..${a}`), countRange(ctx, `${a}..${b}`)])
 			if (isExecResult(left)) return left
-			const right = await countRange(ctx, `${a}..${b}`)
 			if (isExecResult(right)) return right
 			return ok(`${left}\t${right}\n`)
 		}

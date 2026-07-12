@@ -4,7 +4,7 @@
 import { compileSpec, parseSpec } from "./core"
 import type { Ctx, ExecResult, Fixture, Path } from "./core"
 
-export const FIXTURE_ROOT = "/arcadia"
+const FIXTURE_ROOT = "/arcadia"
 
 export interface FixtureResult {
 	path: string
