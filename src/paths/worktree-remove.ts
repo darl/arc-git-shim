@@ -2,6 +2,9 @@
 // (--forget also drops the mount's store — the git-remove semantics; without
 // it the mount lingers in the [unmounted] inventory). arc gc is NOT run per
 // remove (minutes-long; storage already dropped by --forget).
+// In shared-store mode (see worktree-add) only the mount's small private
+// store dies here — the shared object store is owned by no mount and
+// survives every remove.
 // arc requires unmount to run from OUTSIDE the tree → executed at "/".
 import { definePath, ok } from "../core"
 

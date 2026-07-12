@@ -4,17 +4,35 @@
 //   2. arc checkout -b users/<login>/<br> [<base>]   — run INSIDE the mount
 // Per contract the worktree branch is created under users/<login>/ so a later
 // push needs no injection (double-prefix guard covers it).
-// Disk guardrail: each mount costs ~10 GB of store — accepted in grilling.
+//
+// SHARED-STORE MODE (the ai/tools/arc_worktree "mount-shared" pattern): when
+// both shim-config keys are set —
+//   git config arcgit.storesbase  <dir>   # per-mount stores live under here
+//   git config arcgit.objectstore <dir>   # ONE object store for all mounts
+// — the mount gets `-S <storesbase>/<name> --object-store <objectstore>`, so
+// objects download once and worktrees stop costing ~10 GB each. The shared
+// object store is deliberately standalone (owned by no mount): a store owned
+// by a mount would die with that mount's `unmount --forget`.
+// Without the keys: plain isolated-store mount (original behavior).
 import { arcInfo, definePath, isExecResult, ok, pushLens } from "../core"
 
 export default definePath({
 	name: "worktree-add",
-	summary: "arc mount + branch checkout inside the new mount",
+	summary: "arc mount (shared object store if configured) + branch checkout",
 	spec: "worktree add --no-track? --detach? -b=<branch>? <path> <base>?",
 
 	async run(args, ctx) {
 		const mountPath = args.pos.path!
-		const m = await ctx.arc(["mount", mountPath])
+		const storesBase = ctx.config.get("arcgit.storesbase")
+		const objectStore = ctx.config.get("arcgit.objectstore")
+		const mountArgs = ["mount", mountPath]
+		if (storesBase && objectStore) {
+			// arc-wt's mount-shared argv shape: mount -m <path> -S <store> --object-store <obj>
+			const name = mountPath.split("/").filter(Boolean).pop()!
+			mountArgs.splice(1, 0, "-m")
+			mountArgs.push("-S", `${storesBase}/${name}`, "--object-store", objectStore)
+		}
+		const m = await ctx.arc(mountArgs)
 		if (m.code !== 0) return m
 		if (args.pos.branch !== undefined) {
 			const info = await arcInfo(ctx)
@@ -32,6 +50,17 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			name: "shared-store mode: arc-wt mount-shared argv shape",
+			argv: ["worktree", "add", "-b", "task-3", "/wt/task-3", "trunk"],
+			config: { "arcgit.storesbase": "/home/u/.arc/stores", "arcgit.objectstore": "/home/u/arc_obj_store" },
+			arcReplies: {
+				"mount -m /wt/task-3 -S /home/u/.arc/stores/task-3 --object-store /home/u/arc_obj_store": {},
+				"info --json": { stdout: '{"branch":"pr-1","user_login":"darl"}' },
+				"checkout -b users/darl/task-3 trunk": {},
+			},
+			want: { stdout: "Preparing worktree (new branch 'task-3')\n", code: 0 },
+		},
 		{
 			name: "orca shape: no-track new branch from base",
 			argv: ["worktree", "add", "--no-track", "-b", "task-1", "/wt/task-1", "trunk"],
