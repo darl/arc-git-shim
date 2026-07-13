@@ -9,6 +9,7 @@ import p_checkout_branch from "./paths/checkout-branch"
 import p_checkout_paths from "./paths/checkout-paths"
 import p_clean from "./paths/clean"
 import p_commit from "./paths/commit"
+import p_config_list from "./paths/config-list"
 import p_config from "./paths/config"
 import p_diff_name_status from "./paths/diff-name-status"
 import p_diff_numstat from "./paths/diff-numstat"
@@ -74,6 +75,7 @@ export const paths: Path[] = [
 	p_checkout_paths,
 	p_clean,
 	p_commit,
+	p_config_list,
 	p_config,
 	p_diff_name_status,
 	p_diff_numstat,
