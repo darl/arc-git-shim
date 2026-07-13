@@ -14,6 +14,7 @@ import p_diff_name_status from "./paths/diff-name-status"
 import p_diff_numstat from "./paths/diff-numstat"
 import p_diff_prose from "./paths/diff-prose"
 import p_fetch from "./paths/fetch"
+import p_for_each_ref_sorted from "./paths/for-each-ref-sorted"
 import p_for_each_ref from "./paths/for-each-ref"
 import p_log_format from "./paths/log-format"
 import p_log_plain from "./paths/log-plain"
@@ -78,6 +79,7 @@ export const paths: Path[] = [
 	p_diff_numstat,
 	p_diff_prose,
 	p_fetch,
+	p_for_each_ref_sorted,
 	p_for_each_ref,
 	p_log_format,
 	p_log_plain,
