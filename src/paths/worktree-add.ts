@@ -14,7 +14,7 @@
 // object store is deliberately standalone (owned by no mount): a store owned
 // by a mount would die with that mount's `unmount --forget`.
 // Without the keys: plain isolated-store mount (original behavior).
-import { arcInfo, definePath, isExecResult, ok, pushLens } from "../core"
+import { arcInfo, arcRev, definePath, isExecResult, ok, pushLens } from "../core"
 
 export default definePath({
 	name: "worktree-add",
@@ -34,16 +34,19 @@ export default definePath({
 		}
 		const m = await ctx.arc(mountArgs)
 		if (m.code !== 0) return m
+		// orca qualifies the base it probed (refs/remotes/arcadia/trunk) before
+		// handing it to worktree add; arc only knows the short form
+		const base = args.pos.base !== undefined ? arcRev(args.pos.base) : undefined
 		if (args.pos.branch !== undefined) {
 			const info = await arcInfo(ctx)
 			if (isExecResult(info)) return info
 			const branch = pushLens(args.pos.branch, info.user_login ?? "unknown")
 			const co = ["checkout", "-b", branch]
-			if (args.pos.base !== undefined) co.push(args.pos.base)
+			if (base !== undefined) co.push(base)
 			const c = await ctx.arc(co, { cwd: mountPath })
 			if (c.code !== 0) return c
-		} else if (args.pos.base !== undefined) {
-			const c = await ctx.arc(["checkout", args.pos.base], { cwd: mountPath })
+		} else if (base !== undefined) {
+			const c = await ctx.arc(["checkout", base], { cwd: mountPath })
 			if (c.code !== 0) return c
 		}
 		return ok(`Preparing worktree (new branch '${args.pos.branch ?? args.pos.base ?? "trunk"}')\n`)
@@ -80,6 +83,16 @@ export default definePath({
 				"checkout -b users/darl/task-2": {},
 			},
 			want: { stdout: "Preparing worktree (new branch 'users/darl/task-2')\n", code: 0 },
+		},
+		{
+			name: "orca qualified base normalized to arc's short form",
+			argv: ["worktree", "add", "--no-track", "-b", "perf-task", "/wt/perf-task", "refs/remotes/arcadia/trunk"],
+			arcReplies: {
+				"mount /wt/perf-task": {},
+				"info --json": { stdout: '{"branch":"pr-1","user_login":"darl"}' },
+				"checkout -b users/darl/perf-task arcadia/trunk": {},
+			},
+			want: { stdout: "Preparing worktree (new branch 'perf-task')\n", code: 0 },
 		},
 		{
 			name: "mount failure propagates",
