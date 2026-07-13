@@ -22,6 +22,7 @@ import p_log_format from "./paths/log-format"
 import p_log_plain from "./paths/log-plain"
 import p_ls_files_error_unmatch from "./paths/ls-files-error-unmatch"
 import p_ls_files from "./paths/ls-files"
+import p_ls_remote_heads from "./paths/ls-remote-heads"
 import p_merge_base_is_ancestor from "./paths/merge-base-is-ancestor"
 import p_merge_base from "./paths/merge-base"
 import p_mv from "./paths/mv"
@@ -89,6 +90,7 @@ export const paths: Path[] = [
 	p_log_plain,
 	p_ls_files_error_unmatch,
 	p_ls_files,
+	p_ls_remote_heads,
 	p_merge_base_is_ancestor,
 	p_merge_base,
 	p_mv,
