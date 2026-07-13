@@ -1,17 +1,18 @@
 // git rev-parse <rev> → full 40-char OID. arc rev-parse resolves revs natively.
 // arc's failure text differs; reshape to git's fatal (exit 128, git says 128
 // for unknown revision with a lone rev argument).
-import { badRevision, definePath, ok } from "../core"
+import { arcRev, badRevision, definePath, ok } from "../core"
 
 export default definePath({
 	name: "rev-parse-rev",
 	summary: "resolve a revision to its full hash",
 	spec: "rev-parse <rev>",
-	// rev:path / :path shapes belong to `show`; pathspecs are not revisions here
-	refine: (args) => !args.pos.rev!.includes(":"),
+	// rev:path / :path shapes belong to `show`; pathspecs are not revisions
+	// here (but ^{commit} peeling, stripped by arcRev, is)
+	refine: (args) => !args.pos.rev!.replace(/\^\{commit\}$/, "").includes(":"),
 
 	async run(args, ctx) {
-		const r = await ctx.arc(["rev-parse", args.pos.rev!])
+		const r = await ctx.arc(["rev-parse", arcRev(args.pos.rev!)])
 		if (r.code !== 0) return badRevision(args.pos.rev!)
 		return ok(r.stdout.endsWith("\n") ? r.stdout : r.stdout + "\n")
 	},
@@ -24,6 +25,14 @@ export default definePath({
 				"rev-parse HEAD": { stdout: "a7819db772eed4b7b5a49b558b22f185464b80a0\n" },
 			},
 			want: { stdout: "a7819db772eed4b7b5a49b558b22f185464b80a0\n", code: 0 },
+		},
+		{
+			name: "qualified remote-tracking ref with peel suffix",
+			argv: ["rev-parse", "refs/remotes/origin/trunk^{commit}"],
+			arcReplies: {
+				"rev-parse arcadia/trunk": { stdout: "c79064cbea91ca389afe153a347d588452fe50df\n" },
+			},
+			want: { stdout: "c79064cbea91ca389afe153a347d588452fe50df\n", code: 0 },
 		},
 		{
 			name: "unknown rev is a git-shaped fatal",

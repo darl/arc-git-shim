@@ -397,6 +397,21 @@ export const ARC_REMOTE_URL = "arc://arcadia/arcadia"
  * HEAD is detached (and may omit the field entirely). */
 export const isDetached = (branch: string | undefined): boolean => !branch || /^[0-9a-f]{40}$/.test(branch)
 
+/** Normalize a git revision to arc's naming. Git's fully-qualified ref forms
+ * don't exist in arc: remote-tracking refs are named "arcadia/<branch>" (and
+ * our symbolic-ref emulation hands callers "refs/remotes/arcadia/trunk", which
+ * they feed straight back into rev-parse/merge-base probes — the shim must
+ * resolve what it advertises), local heads are bare names. ^{commit} peeling
+ * is a no-op here (arc refs always point at commits), so strip it. */
+export function arcRev(rev: string): string {
+	const peeled = rev.replace(/\^\{commit\}$/, "")
+	const remote = peeled.match(/^refs\/remotes\/(?:arcadia|origin)\/(.+)$/)
+	if (remote) return remote[1] === "HEAD" ? "trunk" : `arcadia/${remote[1]}`
+	const head = peeled.match(/^refs\/heads\/(.+)$/)
+	if (head) return head[1]!
+	return peeled
+}
+
 /** Expand one git-diff rev-ish argument into arc diff args.
  * "x...y" → merge-base(x,y) y (git three-dot); "x..y" → x y (open ends = HEAD).
  * vsWorktree (lone rev diffed against the working tree) → merge-base(rev, HEAD):

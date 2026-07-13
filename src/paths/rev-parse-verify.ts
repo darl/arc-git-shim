@@ -1,7 +1,7 @@
 // orca probes ref existence: rev-parse --verify [--quiet] <ref>[^{commit}]
 // Exit 1 (quiet: silent) = ref missing — that exit code is DATA for orca.
 // arc rev-parse has no --verify; a plain resolve + exit-code mapping matches.
-import { definePath, fail, ok } from "../core"
+import { arcRev, definePath, fail, ok } from "../core"
 
 export default definePath({
 	name: "rev-parse-verify",
@@ -10,8 +10,7 @@ export default definePath({
 
 	async run(args, ctx) {
 		const quiet = args.flags.has("--quiet") || args.flags.has("-q")
-		const ref = args.pos.ref!.replace(/\^\{commit\}$/, "")
-		const r = await ctx.arc(["rev-parse", ref])
+		const r = await ctx.arc(["rev-parse", arcRev(args.pos.ref!)])
 		if (r.code !== 0) return quiet ? fail(1, "") : fail(128, "fatal: Needed a single revision\n")
 		return ok(r.stdout.endsWith("\n") ? r.stdout : r.stdout + "\n")
 	},
@@ -24,6 +23,32 @@ export default definePath({
 				"rev-parse trunk": { stdout: "c79064cbea91ca389afe153a347d588452fe50df\n" },
 			},
 			want: { stdout: "c79064cbea91ca389afe153a347d588452fe50df\n", code: 0 },
+		},
+		{
+			// orca verifies the exact ref our symbolic-ref emulation advertises —
+			// the shim must resolve what it hands out
+			name: "qualified remote-tracking ref (symbolic-ref round-trip)",
+			argv: ["rev-parse", "--verify", "--quiet", "refs/remotes/arcadia/trunk"],
+			arcReplies: {
+				"rev-parse arcadia/trunk": { stdout: "c79064cbea91ca389afe153a347d588452fe50df\n" },
+			},
+			want: { stdout: "c79064cbea91ca389afe153a347d588452fe50df\n", code: 0 },
+		},
+		{
+			name: "qualified + peeled, origin alias",
+			argv: ["rev-parse", "--verify", "refs/remotes/origin/trunk^{commit}"],
+			arcReplies: {
+				"rev-parse arcadia/trunk": { stdout: "c79064cbea91ca389afe153a347d588452fe50df\n" },
+			},
+			want: { stdout: "c79064cbea91ca389afe153a347d588452fe50df\n", code: 0 },
+		},
+		{
+			name: "refs/heads form maps to bare branch",
+			argv: ["rev-parse", "--verify", "--quiet", "refs/heads/users/darl/x"],
+			arcReplies: {
+				"rev-parse users/darl/x": { stdout: "a7819db772eed4b7b5a49b558b22f185464b80a0\n" },
+			},
+			want: { stdout: "a7819db772eed4b7b5a49b558b22f185464b80a0\n", code: 0 },
 		},
 		{
 			name: "missing ref, quiet: silent exit 1",

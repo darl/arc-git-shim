@@ -2,7 +2,7 @@
 // unique-prefix search is impractical against the monorepo, so the shim emits
 // a fixed SHORT_HASH_LEN (12) prefix — long enough to stay unambiguous in
 // Arcadia, and every arc command accepts it back as a prefix.
-import { badRevision, definePath, ok, SHORT_HASH_LEN } from "../core"
+import { arcRev, badRevision, definePath, ok, SHORT_HASH_LEN } from "../core"
 
 export default definePath({
 	name: "rev-parse-short",
@@ -11,7 +11,7 @@ export default definePath({
 	refine: (args) => !args.pos.rev!.includes(":"),
 
 	async run(args, ctx) {
-		const r = await ctx.arc(["rev-parse", args.pos.rev!])
+		const r = await ctx.arc(["rev-parse", arcRev(args.pos.rev!)])
 		if (r.code !== 0) return badRevision(args.pos.rev!)
 		return ok(r.stdout.trim().slice(0, SHORT_HASH_LEN) + "\n")
 	},
