@@ -1,5 +1,10 @@
 // Exactly one remote exists in the arc world: "arcadia".
-import { definePath, ok } from "../core"
+// The URL carries a path component (arc://arcadia/arcadia, not arc://arcadia)
+// on purpose: consumers canonicalize remote URLs as host+path and DROP a
+// path-less URL (empty path → no identity). With the path, every arcadia
+// checkout — this machine, a VPS, a worktree — shares one stable remote
+// identity, so orca groups them as ONE project instead of a project each.
+import { ARC_REMOTE_URL, definePath, ok } from "../core"
 
 export default definePath({
 	name: "remote-list",
@@ -8,7 +13,7 @@ export default definePath({
 
 	async run(args) {
 		if (args.flags.has("-v") || args.flags.has("--verbose"))
-			return ok("arcadia\tarc://arcadia (fetch)\narcadia\tarc://arcadia (push)\n")
+			return ok(`arcadia\t${ARC_REMOTE_URL} (fetch)\narcadia\t${ARC_REMOTE_URL} (push)\n`)
 		return ok("arcadia\n")
 	},
 
@@ -23,7 +28,7 @@ export default definePath({
 			name: "verbose",
 			argv: ["remote", "-v"],
 			arcReplies: {},
-			want: { stdout: "arcadia\tarc://arcadia (fetch)\narcadia\tarc://arcadia (push)\n", code: 0 },
+			want: { stdout: "arcadia\tarc://arcadia/arcadia (fetch)\narcadia\tarc://arcadia/arcadia (push)\n", code: 0 },
 		},
 	],
 })

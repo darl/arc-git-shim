@@ -387,6 +387,12 @@ export const pushLens = (branch: string, login: string): string =>
  * alias (cross-cutting contract — one definition, not per-path literals). */
 export const isRemoteAlias = (name: string): boolean => name === "arcadia" || name === "origin"
 
+/** Synthetic URL of the arcadia remote. The path segment is load-bearing:
+ * URL canonicalizers (orca's project grouping) key on host+path and drop a
+ * path-less URL, so `arc://arcadia/arcadia` gives every arcadia checkout one
+ * shared, stable remote identity. */
+export const ARC_REMOTE_URL = "arc://arcadia/arcadia"
+
 /** arc info --json reports a bare 40-hex commit hash in the branch field when
  * HEAD is detached (and may omit the field entirely). */
 export const isDetached = (branch: string | undefined): boolean => !branch || /^[0-9a-f]{40}$/.test(branch)
