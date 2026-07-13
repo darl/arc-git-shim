@@ -36,6 +36,11 @@ export default definePath({
 			if (isExecResult(j)) continue // stale/broken mount: skip, like git prunable entries
 			trees.push({ mnt: mounts[i]!, hash: j.hash ?? "0".repeat(40), branch: isDetached(j.branch) ? undefined : j.branch })
 		}
+		// git prints the MAIN worktree first and consumers (orca) key "primary"
+		// off that position. Arc mounts are peers with no main/linked notion, so
+		// emulate: the mount this command runs inside is the caller's repo — it
+		// goes first (orca always lists from the repo's own path).
+		trees.sort((a, b) => Number(b.mnt === ctx.arcRoot) - Number(a.mnt === ctx.arcRoot))
 		if (!args.flags.has("--porcelain")) {
 			// human table (loose): path  hash  [branch]
 			return ok(trees.map((t) => `${t.mnt}  ${t.hash.slice(0, SHORT_HASH_LEN)} [${t.branch ?? "detached"}]\n`).join(""))
@@ -66,6 +71,25 @@ export default definePath({
 			want: {
 				stdout:
 					"worktree /Users/darl/arcadia\nHEAD a7819db772eed4b7b5a49b558b22f185464b80a0\nbranch refs/heads/users/darl/task-1\n\n",
+				code: 0,
+			},
+		},
+		{
+			name: "caller's mount emitted first (orca keys primary off position)",
+			argv: ["worktree", "list", "--porcelain"],
+			arcReplies: {
+				"unmount --list": {
+					stdout:
+						"[mounted, pid: 2] mount: /wt/task store: /s/t object_store: /o\n[mounted, pid: 1] mount: /arcadia store: /s/a object_store: /o\n",
+				},
+				"info --json": {
+					stdout: '{"branch":"users/darl/task-1","hash":"a7819db772eed4b7b5a49b558b22f185464b80a0"}',
+				},
+			},
+			want: {
+				stdout:
+					"worktree /arcadia\nHEAD a7819db772eed4b7b5a49b558b22f185464b80a0\nbranch refs/heads/users/darl/task-1\n\n" +
+					"worktree /wt/task\nHEAD a7819db772eed4b7b5a49b558b22f185464b80a0\nbranch refs/heads/users/darl/task-1\n\n",
 				code: 0,
 			},
 		},
