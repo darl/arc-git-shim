@@ -71,12 +71,16 @@ export function persistCtx(ctx: Ctx, configSnapshot: string): void {
 
 /** Walk up from dir; return {kind:"git"|"arc", root} for the CLOSEST marker,
  * or null when neither exists. Closest-wins: the shim's own plain-git source
- * repo resolves to git even on a machine where $HOME is under some arc tree. */
+ * repo resolves to git even on a machine where $HOME is under some arc tree.
+ * The arc marker requires .arc/HEAD: a working copy's .arc symlinks into a
+ * git-dir-shaped store, while ~/.arc — arc's CONFIG home, present in $HOME on
+ * every arc machine — has no HEAD (acceptance finding: a `git clone` under
+ * $HOME was mistaken for an in-arc-tree call and refused). */
 export function detectTree(dir: string): { kind: "git" | "arc"; root: string } | null {
 	let d = dir
 	for (;;) {
 		if (existsSync(join(d, ".git"))) return { kind: "git", root: d }
-		if (existsSync(join(d, ".arc"))) return { kind: "arc", root: d }
+		if (existsSync(join(d, ".arc", "HEAD"))) return { kind: "arc", root: d }
 		const parent = dirname(d)
 		if (parent === d) return null
 		d = parent
