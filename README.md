@@ -106,10 +106,17 @@ State lives in `~/.arc-git/`: the binary (`bin/`), per-root config store (`store
 
 > **Landmine:** orca appends `.orca` to the repo root `.gitignore` when missing. Arcadia's root `.gitignore` is a *tracked* file — orca will dirty the monorepo working copy on first touch. Decide how to handle this before pointing orca at the mount.
 
-**SSH hosts (Linux VPS):** orca uploads a relay that executes all git commands remotely via bare `git` spawns. The relay is launched through `/bin/sh -lc`, so its PATH comes from **`~/.profile`** on the host — prepend the shim there (see install above). Do **not** rely on `~/.local/bin`: the relay appends such fallback dirs *after* the inherited PATH, so `/usr/bin/git` would win. Agent terminals in orca are interactive PTYs and read `~/.bashrc`/`~/.zshrc` — cover both files. Verify from your desktop:
+**SSH hosts (Linux VPS):** orca uploads a relay (`~/.orca-remote/relay-*/relay.js`) that executes all git commands remotely via bare `git` spawns. The relay is launched with plain `/bin/sh -c` over the ssh exec channel, so its PATH is the **raw sshd default** (`/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:…`) — no `~/.profile`, no rc files, and orca only *appends* fallback dirs (`~/.local/bin` etc.) after `/usr/bin`, so nothing user-level can outrank the real git. The reliable hook is `/usr/local/bin`, which precedes `/usr/bin` in that default:
 
 ```sh
-ssh <host> 'sh -lc "which git"'    # must print /home/<you>/.arc-git/bin/git
+sudo ln -s "$HOME/.arc-git/bin/git" /usr/local/bin/git
+pkill -f relay.js     # restart the relay; orca respawns it on reconnect
+```
+
+Safe system-wide by design (the shim is a transparent real-git alias outside arc trees) and survives self-updates (the symlink targets the path; learns swap the binary atomically in place). Still add the shim dir to `~/.profile`/`~/.bashrc` for interactive sessions and agent PTYs. Verify:
+
+```sh
+ssh <host> 'env PATH=/usr/local/bin:/usr/bin:/bin which git'   # → /usr/local/bin/git
 ```
 
 ## Development
