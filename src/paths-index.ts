@@ -11,6 +11,7 @@ import p_clean from "./paths/clean"
 import p_commit from "./paths/commit"
 import p_config_list from "./paths/config-list"
 import p_config from "./paths/config"
+import p_diff_cached_numstat from "./paths/diff-cached-numstat"
 import p_diff_name_status from "./paths/diff-name-status"
 import p_diff_numstat from "./paths/diff-numstat"
 import p_diff_prose from "./paths/diff-prose"
@@ -77,6 +78,7 @@ export const paths: Path[] = [
 	p_commit,
 	p_config_list,
 	p_config,
+	p_diff_cached_numstat,
 	p_diff_name_status,
 	p_diff_numstat,
 	p_diff_prose,
