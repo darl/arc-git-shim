@@ -24,6 +24,7 @@ import p_merge_base from "./paths/merge-base"
 import p_mv from "./paths/mv"
 import p_pull from "./paths/pull"
 import p_push from "./paths/push"
+import p_remote_get_url_push from "./paths/remote-get-url-push"
 import p_remote_get_url from "./paths/remote-get-url"
 import p_remote from "./paths/remote"
 import p_reset from "./paths/reset"
@@ -85,6 +86,7 @@ export const paths: Path[] = [
 	p_mv,
 	p_pull,
 	p_push,
+	p_remote_get_url_push,
 	p_remote_get_url,
 	p_remote,
 	p_reset,
