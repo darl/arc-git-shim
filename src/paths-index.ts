@@ -32,6 +32,7 @@ import p_restore_staged from "./paths/restore-staged"
 import p_restore_worktree from "./paths/restore-worktree"
 import p_rev_list_count from "./paths/rev-list-count"
 import p_rev_parse_abbrev_ref from "./paths/rev-parse-abbrev-ref"
+import p_rev_parse_git_common_dir from "./paths/rev-parse-git-common-dir"
 import p_rev_parse_git_dir from "./paths/rev-parse-git-dir"
 import p_rev_parse_is_bare_repository from "./paths/rev-parse-is-bare-repository"
 import p_rev_parse_is_inside_work_tree from "./paths/rev-parse-is-inside-work-tree"
@@ -95,6 +96,7 @@ export const paths: Path[] = [
 	p_restore_worktree,
 	p_rev_list_count,
 	p_rev_parse_abbrev_ref,
+	p_rev_parse_git_common_dir,
 	p_rev_parse_git_dir,
 	p_rev_parse_is_bare_repository,
 	p_rev_parse_is_inside_work_tree,
