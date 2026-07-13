@@ -50,6 +50,7 @@ import p_status_porcelain_v2 from "./paths/status-porcelain-v2"
 import p_status_sb from "./paths/status-sb"
 import p_switch from "./paths/switch"
 import p_symbolic_ref_head from "./paths/symbolic-ref-head"
+import p_symbolic_ref_remote_head from "./paths/symbolic-ref-remote-head"
 import p_unsupported_clone from "./paths/unsupported-clone"
 import p_unsupported_remote_mutate from "./paths/unsupported-remote-mutate"
 import p_unsupported_submodule from "./paths/unsupported-submodule"
@@ -112,6 +113,7 @@ export const paths: Path[] = [
 	p_status_sb,
 	p_switch,
 	p_symbolic_ref_head,
+	p_symbolic_ref_remote_head,
 	p_unsupported_clone,
 	p_unsupported_remote_mutate,
 	p_unsupported_submodule,
