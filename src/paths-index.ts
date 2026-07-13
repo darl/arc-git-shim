@@ -12,6 +12,7 @@ import p_clean from "./paths/clean"
 import p_commit from "./paths/commit"
 import p_config_list from "./paths/config-list"
 import p_config_replace_all from "./paths/config-replace-all"
+import p_config_unset_all from "./paths/config-unset-all"
 import p_config from "./paths/config"
 import p_diff_cached_numstat from "./paths/diff-cached-numstat"
 import p_diff_name_status from "./paths/diff-name-status"
@@ -82,6 +83,7 @@ export const paths: Path[] = [
 	p_commit,
 	p_config_list,
 	p_config_replace_all,
+	p_config_unset_all,
 	p_config,
 	p_diff_cached_numstat,
 	p_diff_name_status,
