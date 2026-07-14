@@ -24,6 +24,7 @@ import p_fetch from "./paths/fetch"
 import p_for_each_ref_remotes from "./paths/for-each-ref-remotes"
 import p_for_each_ref_sorted from "./paths/for-each-ref-sorted"
 import p_for_each_ref from "./paths/for-each-ref"
+import p_log_cherry_mark_right_only from "./paths/log-cherry-mark-right-only"
 import p_log_format from "./paths/log-format"
 import p_log_plain from "./paths/log-plain"
 import p_ls_files_error_unmatch from "./paths/ls-files-error-unmatch"
@@ -54,6 +55,7 @@ import p_rev_parse_toplevel_git_dir_abbrev_ref from "./paths/rev-parse-toplevel-
 import p_rev_parse_verify from "./paths/rev-parse-verify"
 import p_show_blob from "./paths/show-blob"
 import p_show_commit from "./paths/show-commit"
+import p_show_ref_verify from "./paths/show-ref-verify"
 import p_stash from "./paths/stash"
 import p_status_long from "./paths/status-long"
 import p_status_porcelain_v1 from "./paths/status-porcelain-v1"
@@ -98,6 +100,7 @@ export const paths: Path[] = [
 	p_for_each_ref_remotes,
 	p_for_each_ref_sorted,
 	p_for_each_ref,
+	p_log_cherry_mark_right_only,
 	p_log_format,
 	p_log_plain,
 	p_ls_files_error_unmatch,
@@ -128,6 +131,7 @@ export const paths: Path[] = [
 	p_rev_parse_verify,
 	p_show_blob,
 	p_show_commit,
+	p_show_ref_verify,
 	p_stash,
 	p_status_long,
 	p_status_porcelain_v1,
