@@ -5,6 +5,7 @@ import p_branch_list_pattern from "./paths/branch-list-pattern"
 import p_branch_list from "./paths/branch-list"
 import p_branch_set_upstream from "./paths/branch-set-upstream"
 import p_branch_show_current from "./paths/branch-show-current"
+import p_check_ignore_z_stdin from "./paths/check-ignore-z-stdin"
 import p_check_ignore from "./paths/check-ignore"
 import p_check_ref_format_refname from "./paths/check-ref-format-refname"
 import p_check_ref_format from "./paths/check-ref-format"
@@ -81,6 +82,7 @@ export const paths: Path[] = [
 	p_branch_list,
 	p_branch_set_upstream,
 	p_branch_show_current,
+	p_check_ignore_z_stdin,
 	p_check_ignore,
 	p_check_ref_format_refname,
 	p_check_ref_format,
