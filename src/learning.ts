@@ -4,6 +4,7 @@
 // second UNKNOWN command blocks on the lock (≤10 min) and then re-execs the
 // fresh binary — if the concurrent learn covered this very command it now
 // succeeds with zero extra LLM calls.
+import { spawn } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { INSTALLED_GIT } from "./build"
@@ -33,13 +34,32 @@ export const readSrcDir = (): string | undefined => {
 }
 
 /** Spawn the source-run learner. ARC_GIT=off so every git its subtree
- * touches — pi's bash tool, the gate, the auto-commit — hits real git. */
-export const spawnLearner = (srcDir: string, payload: LearnPayload, stdio: ["inherit" | "ignore", "inherit" | "ignore", "inherit"]) =>
-	Bun.spawn(["bun", join(srcDir, "src", "learner.ts"), "--json", JSON.stringify(payload)], {
+ * touches — pi's bash tool, the gate, the auto-commit — hits real git.
+ * detached puts the learner in its own process GROUP: callers like t3code
+ * kill git's whole group on their command timeout (Effect spawns children
+ * as group leaders and cleans up via kill(-pid)), which would otherwise
+ * take the episode down mid-learn. Live mode detaches; hand mode stays
+ * attached so ^C still kills the foreground episode. */
+export const spawnLearner = (
+	srcDir: string,
+	payload: LearnPayload,
+	stdio: ["inherit" | "ignore", "inherit" | "ignore", "inherit"],
+	opts: { detached?: boolean } = {},
+): { pid: number | undefined; exited: Promise<number> } => {
+	const child = spawn("bun", [join(srcDir, "src", "learner.ts"), "--json", JSON.stringify(payload)], {
 		cwd: srcDir,
 		stdio,
-		env: { ...process.env, ARC_GIT: "off" } as Record<string, string>,
+		detached: opts.detached ?? false,
+		env: { ...process.env, ARC_GIT: "off" },
 	})
+	return {
+		pid: child.pid,
+		exited: new Promise((resolve) => {
+			child.on("error", () => resolve(1))
+			child.on("exit", (code) => resolve(code ?? 1))
+		}),
+	}
+}
 
 /** Any successful rebuild clears failure memory (failure-contract design). */
 export const clearNegativeCache = (): void => {
@@ -61,11 +81,24 @@ const readState = (): Record<string, number> => {
 	}
 }
 
-const recordFailure = (key: string): void => {
+/** Exported: the learner records its own failures too — when the shim was
+ * killed mid-episode (t3code group kill, ^C) nobody else is left to write
+ * the negative cache, and without it every retry burns a doomed episode. */
+export const recordFailure = (key: string): void => {
 	mkdirSync(SHIM_HOME, { recursive: true })
 	const s = readState()
 	s[key] = Date.now()
 	writeFileSync(STATE, JSON.stringify(s, null, "\t") + "\n")
+}
+
+/** Learner-side unlock. The shim's own unlock lives in a finally that never
+ * runs if the shim dies by signal; a surviving detached learner must release
+ * the lock itself or every later unknown command waits out the full 10 min.
+ * Pid-guarded so a hand learn can never release a concurrent live lock. */
+export const releaseLearnLockIfOwner = (pid: number): void => {
+	try {
+		if (parseInt(readFileSync(join(LOCK_DIR, "pid"), "utf8")) === pid) rmSync(LOCK_DIR, { recursive: true, force: true })
+	} catch {}
 }
 
 const tryLock = (): boolean => {
@@ -136,7 +169,12 @@ export async function triggerLearning(cmd: string[], rawArgv: string[], callCwd:
 
 	try {
 		// learner phase lines land on our stderr
-		const p = spawnLearner(srcDir!, { argv: cmd, callCwd, arcRoot, mode: "live" }, ["ignore", "ignore", "inherit"])
+		const p = spawnLearner(srcDir!, { argv: cmd, callCwd, arcRoot, mode: "live" }, ["ignore", "ignore", "inherit"], { detached: true })
+		// hand the lock to the process that actually owns the episode: if this
+		// shim is killed (t3code group kill, orca RPC abort) the stale-steal
+		// check must probe the surviving learner, not a dead shim — otherwise
+		// a second unknown command steals the lock and races a live learn
+		if (p.pid) writeFileSync(join(LOCK_DIR, "pid"), String(p.pid))
 		const code = await p.exited
 		if (code !== 0) {
 			recordFailure(key)

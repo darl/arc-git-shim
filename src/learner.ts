@@ -16,7 +16,7 @@ import { appendFileSync, mkdirSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { gateSteps, installBinary } from "./build"
 import { SHIM_HOME } from "./ctx"
-import { clearNegativeCache, type LearnPayload } from "./learning"
+import { clearNegativeCache, type LearnPayload, recordFailure, releaseLearnLockIfOwner } from "./learning"
 
 process.env.ARC_GIT = "off"
 
@@ -28,19 +28,38 @@ const payload: LearnPayload = JSON.parse(process.argv[process.argv.indexOf("--js
 const hand = payload.mode === "hand"
 const started = Date.now()
 
+// live mode runs detached (own process group): the spawning shim may die
+// mid-episode (t3code kills git's whole group on its 30s timeout) and this
+// process finishes alone. Two consequences handled here:
+//  - stderr is inherited from that possibly-dead shim; a broken pipe must
+//    not crash a surviving learner (the log file is the reliable channel)
+//  - the learn lock now carries THIS pid, and the shim's finally-unlock is
+//    gone with the shim — release it ourselves on every exit path
+process.stderr.on("error", () => {})
+process.on("exit", () => releaseLearnLockIfOwner(process.pid))
+
+/** Failure exit: live mode writes the negative cache itself — a dead shim
+ * can't, and without the entry every retry burns another doomed episode. */
+const dieLearning = (msg: string): never => {
+	phase(msg)
+	if (!hand) recordFailure(payload.argv.join(" "))
+	process.exit(1)
+}
+
 // the wall-clock check below runs only BETWEEN iterations — a stalled pi call
 // inside one iteration would otherwise keep this process (and the learn lock)
 // alive indefinitely (acceptance finding: an orphaned learner survived ^C)
 setTimeout(() => {
-	process.stderr.write("arc-git: learning failed: hard wall-clock limit\n")
-	process.exit(1)
+	dieLearning("learning failed: hard wall-clock limit")
 }, MAX_WALL_MS * 1.25)
 
 mkdirSync(join(SHIM_HOME, "logs"), { recursive: true })
 const logFile = join(SHIM_HOME, "logs", `learn-${new Date().toISOString().replace(/[:.]/g, "-")}.log`)
 const log = (s: string) => appendFileSync(logFile, s.endsWith("\n") ? s : s + "\n")
 const phase = (s: string) => {
-	process.stderr.write(`arc-git: ${s}\n`)
+	try {
+		process.stderr.write(`arc-git: ${s}\n`)
+	} catch {} // stderr pipe may be gone with the shim — log() is the record
 	log(`== ${s}`)
 }
 
@@ -147,10 +166,7 @@ async function main(): Promise<void> {
 	} catch {}
 	const [prov, id] = (payload.model ?? configModel ?? "darl-glm/glm-5.2").split("/") as [string, string]
 	const model = modelRegistry.find(prov, id)
-	if (!model) {
-		phase(`learning failed: model ${prov}/${id} not available`)
-		process.exit(1)
-	}
+	if (!model) dieLearning(`learning failed: model ${prov}/${id} not available`)
 
 	const loader = new DefaultResourceLoader({
 		cwd: SRC,
@@ -187,10 +203,7 @@ async function main(): Promise<void> {
 	let message = await buildPrompt()
 	let green = false
 	for (let i = 1; i <= MAX_ITERATIONS; i++) {
-		if (Date.now() - started > MAX_WALL_MS) {
-			phase(`learning failed: 8 min wall clock exhausted`)
-			process.exit(1)
-		}
+		if (Date.now() - started > MAX_WALL_MS) dieLearning(`learning failed: 8 min wall clock exhausted`)
 		log(`>> prompt (iteration ${i}):\n${message}`)
 		await session.prompt(message)
 		const g = await gate()
@@ -203,10 +216,7 @@ async function main(): Promise<void> {
 	}
 	session.dispose()
 
-	if (!green) {
-		phase(`learning failed after ${MAX_ITERATIONS} attempts (log: ${logFile})`)
-		process.exit(1)
-	}
+	if (!green) dieLearning(`learning failed after ${MAX_ITERATIONS} attempts (log: ${logFile})`)
 
 	const created = [...listPaths()].filter((f) => !before.has(f))
 	const spec = created.length === 1 ? await specOf(created[0]!) : null
