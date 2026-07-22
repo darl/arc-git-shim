@@ -3,6 +3,7 @@ import p_add from "./paths/add"
 import p_branch_delete from "./paths/branch-delete"
 import p_branch_list_pattern from "./paths/branch-list-pattern"
 import p_branch_list from "./paths/branch-list"
+import p_branch_no_color_no_column_remotes from "./paths/branch-no-color-no-column-remotes"
 import p_branch_no_color_no_column from "./paths/branch-no-color-no-column"
 import p_branch_set_upstream from "./paths/branch-set-upstream"
 import p_branch_show_current from "./paths/branch-show-current"
@@ -82,6 +83,7 @@ export const paths: Path[] = [
 	p_branch_delete,
 	p_branch_list_pattern,
 	p_branch_list,
+	p_branch_no_color_no_column_remotes,
 	p_branch_no_color_no_column,
 	p_branch_set_upstream,
 	p_branch_show_current,
