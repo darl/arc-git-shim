@@ -34,6 +34,7 @@ import p_log_cherry_mark_right_only from "./paths/log-cherry-mark-right-only"
 import p_log_format from "./paths/log-format"
 import p_log_plain from "./paths/log-plain"
 import p_ls_files_error_unmatch from "./paths/ls-files-error-unmatch"
+import p_ls_files_others_exclude_standard from "./paths/ls-files-others-exclude-standard"
 import p_ls_files from "./paths/ls-files"
 import p_ls_remote_heads from "./paths/ls-remote-heads"
 import p_merge_base_is_ancestor from "./paths/merge-base-is-ancestor"
@@ -118,6 +119,7 @@ export const paths: Path[] = [
 	p_log_format,
 	p_log_plain,
 	p_ls_files_error_unmatch,
+	p_ls_files_others_exclude_standard,
 	p_ls_files,
 	p_ls_remote_heads,
 	p_merge_base_is_ancestor,
