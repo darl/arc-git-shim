@@ -174,6 +174,7 @@ async function main(): Promise<void> {
 		if (sub === "selftest") await selftest()
 		if (sub === "rollback") rollback()
 		if (sub === "learn") await handLearn(argv.slice(2))
+		if (sub === "prune-mounts") await (await import("./prune-mounts")).pruneMounts(argv.slice(2))
 		if (sub === "paths") {
 			for (const p of paths) console.log(`${p.name.padEnd(32)} ${p.spec}`)
 			process.exit(0)
@@ -182,7 +183,9 @@ async function main(): Promise<void> {
 			console.log(`arc-git ${VERSION}`)
 			process.exit(0)
 		}
-		console.error("arc-git builtins: selftest | rollback | paths | version | learn [--model p/m] -- <git args>")
+		console.error(
+			"arc-git builtins: selftest | rollback | paths | version | learn [--model p/m] -- <git args> | prune-mounts [--apply] [--min-idle d] [--open-pr-idle d]",
+		)
 		process.exit(sub ? 1 : 0)
 	}
 
