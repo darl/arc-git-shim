@@ -80,7 +80,6 @@ import p_unsupported_update_ref from "./paths/unsupported-update-ref"
 import p_worktree_add from "./paths/worktree-add"
 import p_worktree_flag_list from "./paths/worktree-flag-list"
 import p_worktree_list from "./paths/worktree-list"
-import p_worktree_prune_dry_run from "./paths/worktree-prune-dry-run"
 import p_worktree_prune from "./paths/worktree-prune"
 import p_worktree_remove from "./paths/worktree-remove"
 import type { Path } from "./core"
@@ -167,7 +166,6 @@ export const paths: Path[] = [
 	p_worktree_add,
 	p_worktree_flag_list,
 	p_worktree_list,
-	p_worktree_prune_dry_run,
 	p_worktree_prune,
 	p_worktree_remove,
 ]
