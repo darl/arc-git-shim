@@ -137,6 +137,7 @@ ${example2}
 - The only remote is "arcadia" ("origin" silently accepted as an input alias).
 - Ref lens is asymmetric: users/<login>/ is injected implicitly on PUSH only (guard against double prefixes); stdout always reports full explicit refs; pull/fetch never inject.
 - If the command genuinely has no arc equivalent, a path that returns a git-style "fatal: ... is not supported in an arc repository" (exit 128) is a VALID and permanent answer.
+- FIRST verify the argv shape is real git: run \`ARC_GIT=off git <argv…>\` in any real git repo (this shim checkout works). If native git REJECTS the shape ("unknown option", "unknown subcommand", usage + exit 129), the correct path REJECTS it with git's exact stderr and exit code — NEVER invent a friendly interpretation for invalid git syntax; that teaches callers fake git.
 - Match = parse is strict: declare ONLY the argv shapes you actually handle; undeclared shapes must keep falling through to future learning.
 - Output formats must be byte-shaped like real git when the output is machine-parseable (porcelain, plumbing); prose commands may pass arc output through.
 
