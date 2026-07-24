@@ -15,6 +15,7 @@ import p_check_ref_format from "./paths/check-ref-format"
 import p_checkout_branch from "./paths/checkout-branch"
 import p_checkout_paths from "./paths/checkout-paths"
 import p_clean from "./paths/clean"
+import p_commit_multi_message from "./paths/commit-multi-message"
 import p_commit from "./paths/commit"
 import p_config_list from "./paths/config-list"
 import p_config_replace_all from "./paths/config-replace-all"
@@ -105,6 +106,7 @@ export const paths: Path[] = [
 	p_checkout_branch,
 	p_checkout_paths,
 	p_clean,
+	p_commit_multi_message,
 	p_commit,
 	p_config_list,
 	p_config_replace_all,
