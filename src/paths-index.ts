@@ -59,6 +59,7 @@ import p_rev_parse_abbrev_ref_symbolic_full_name from "./paths/rev-parse-abbrev-
 import p_rev_parse_abbrev_ref from "./paths/rev-parse-abbrev-ref"
 import p_rev_parse_git_common_dir from "./paths/rev-parse-git-common-dir"
 import p_rev_parse_git_dir from "./paths/rev-parse-git-dir"
+import p_rev_parse_git_path from "./paths/rev-parse-git-path"
 import p_rev_parse_is_bare_repository from "./paths/rev-parse-is-bare-repository"
 import p_rev_parse_is_inside_work_tree from "./paths/rev-parse-is-inside-work-tree"
 import p_rev_parse_rev from "./paths/rev-parse-rev"
@@ -151,6 +152,7 @@ export const paths: Path[] = [
 	p_rev_parse_abbrev_ref,
 	p_rev_parse_git_common_dir,
 	p_rev_parse_git_dir,
+	p_rev_parse_git_path,
 	p_rev_parse_is_bare_repository,
 	p_rev_parse_is_inside_work_tree,
 	p_rev_parse_rev,
