@@ -197,6 +197,11 @@ async function main(): Promise<void> {
 	// bare `git`, `git --version`, `git --help`, … → real git handles these
 	if (cmd.length === 0 || cmd[0]!.startsWith("-")) await execRealGit(argv)
 
+	// diff --no-index never touches a repository — real git emits it
+	// byte-exactly (hash-bearing index lines defeat emulation; t3code diffs
+	// untracked files against /dev/null this way)
+	if (cmd[0] === "diff" && cmd.includes("--no-index")) await execRealGit(argv)
+
 	const tree = detectTree(effCwd)
 	if (!tree || tree.kind === "git") await execRealGit(argv)
 

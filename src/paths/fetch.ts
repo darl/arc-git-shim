@@ -15,8 +15,15 @@ export default definePath({
 	async run(args, ctx) {
 		let branch = args.pos.branch ?? args.pos.remote
 		if (branch !== undefined && args.pos.branch === undefined && isRemoteAlias(branch)) branch = undefined
-		if (branch !== undefined && branch.includes(":"))
-			return fail(128, `fatal: arc-git: refspec '${branch}' not supported; fetch a plain branch name\n`)
+		if (branch !== undefined && branch.includes(":")) {
+			// mirror refspec +refs/heads/<b>:refs/remotes/<remote>/<b> (t3code's
+			// fetchRemoteBranch) → arc fetch <b>; anything else (refs/pull/…) has
+			// no arc equivalent
+			const m = branch.match(/^\+?refs\/heads\/(.+):refs\/remotes\/(?:arcadia|origin)\/(.+)$/)
+			if (!m || m[1] !== m[2])
+				return fail(128, `fatal: arc-git: refspec '${branch}' not supported; fetch a plain branch name\n`)
+			branch = m[1]
+		}
 		const arcArgs = ["fetch"]
 		if (branch !== undefined) arcArgs.push(branch)
 		const r = await ctx.arc(arcArgs)
@@ -41,6 +48,21 @@ export default definePath({
 			argv: ["fetch", "--prune", "origin"],
 			arcReplies: { fetch: {} },
 			want: { stdout: "", code: 0 },
+		},
+		{
+			name: "mirror refspec unwrapped (t3code fetchRemoteBranch)",
+			argv: ["fetch", "--quiet", "--no-tags", "origin", "+refs/heads/users/darl/x:refs/remotes/origin/users/darl/x"],
+			arcReplies: { "fetch users/darl/x": {} },
+			want: { stdout: "", code: 0 },
+		},
+		{
+			name: "pull-request refspec rejected",
+			argv: ["fetch", "--quiet", "--no-tags", "origin", "+refs/pull/42/head:refs/heads/pr-42"],
+			arcReplies: {},
+			want: {
+				stderr: "fatal: arc-git: refspec '+refs/pull/42/head:refs/heads/pr-42' not supported; fetch a plain branch name\n",
+				code: 128,
+			},
 		},
 	],
 })

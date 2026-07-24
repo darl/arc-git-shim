@@ -10,7 +10,10 @@ import { definePath, expandDiffRev, isExecResult, ok } from "../core"
 export default definePath({
 	name: "diff-patch-minimal",
 	summary: "patch diff via arc diff --git",
-	spec: "diff --patch --minimal <rev>? -- <paths...>?",
+	// --no-ext-diff is a no-op (arc never uses external diff drivers); the
+	// separator is optional — t3code's PR-range shape has none
+	// (diff --no-ext-diff --patch --minimal <base>..HEAD)
+	spec: "diff --no-ext-diff? --patch --minimal <rev>? --? <paths...>?",
 
 	async run(args, ctx) {
 		const arcArgs = ["diff", "--git"]
@@ -73,6 +76,19 @@ export default definePath({
 				"diff --git": { stdout: "" },
 			},
 			want: { stdout: "", code: 0 },
+		},
+		{
+			name: "no-ext-diff range without separator (t3code PR range)",
+			argv: ["diff", "--no-ext-diff", "--patch", "--minimal", "trunk..HEAD"],
+			arcReplies: {
+				"diff --git trunk HEAD": {
+					stdout: "diff --git a/x.go b/x.go\n--- a/x.go\n+++ b/x.go\n@@ -1 +1 @@\n-p\n+q\n",
+				},
+			},
+			want: {
+				stdout: "diff --git a/x.go b/x.go\n--- a/x.go\n+++ b/x.go\n@@ -1 +1 @@\n-p\n+q\n",
+				code: 0,
+			},
 		},
 		{
 			name: "trunk rev uses merge-base lens",

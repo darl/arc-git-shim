@@ -17,7 +17,7 @@ export default definePath({
 	refine: (args) => {
 		// single non-remote arg is a refspec; explicit remote must be arcadia/origin
 		if (args.pos.remote !== undefined && args.pos.refspec !== undefined) return isRemoteAlias(args.pos.remote)
-		return !(args.pos.remote ?? "").includes(":") // src:dst refspecs → learnable
+		return true
 	},
 
 	async run(args, ctx) {
@@ -26,6 +26,29 @@ export default definePath({
 		const arcArgs = ["push"]
 		if (args.flags.has("-f") || args.flags.has("--force") || args.flags.has("--force-with-lease"))
 			arcArgs.push("--force")
+		if (refspec !== undefined && refspec.includes(":")) {
+			// explicit src:dst (t3code publishes `push -u <remote> HEAD:refs/heads/<b>`).
+			// arc push accepts refspecs verbatim and skips its users/<login>/
+			// auto-prefix — which otherwise DOUBLES an already-prefixed local
+			// branch name (arc prefixes the current branch unconditionally).
+			const ci = refspec.indexOf(":")
+			const src = refspec.slice(0, ci)
+			const dstRaw = refspec.slice(ci + 1).replace(/^refs\/heads\//, "")
+			if (!src || !dstRaw) return fail(128, `fatal: invalid refspec '${refspec}'\n`)
+			const info = await arcInfo(ctx)
+			if (isExecResult(info)) return info
+			if (!info.user_login) return fail(128, "fatal: arc-git: cannot determine user login from arc info\n")
+			const dst = pushLens(dstRaw, info.user_login)
+			const r = await ctx.arc([...arcArgs, `${src}:${dst}`])
+			if (r.code !== 0) return r
+			if (args.flags.has("-u") || args.flags.has("--set-upstream")) {
+				const upArgs = ["branch", "-u", dst]
+				if (src !== "HEAD" && src !== info.branch) upArgs.push(src)
+				const up = await ctx.arc(upArgs)
+				if (up.code !== 0) return up
+			}
+			return r
+		}
 		if (refspec !== undefined) {
 			const info = await arcInfo(ctx)
 			if (isExecResult(info)) return info
@@ -50,6 +73,25 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			name: "t3code publish refspec pins exact remote name (no double prefix)",
+			argv: ["push", "-u", "origin", "HEAD:refs/heads/users/darl/t3code/abc"],
+			arcReplies: {
+				"info --json": { stdout: '{"branch":"users/darl/t3code/abc","user_login":"darl"}' },
+				"push HEAD:users/darl/t3code/abc": {},
+				"branch -u users/darl/t3code/abc": { stdout: "" },
+			},
+			want: { stdout: "", code: 0 },
+		},
+		{
+			name: "refspec dst lensed when unprefixed",
+			argv: ["push", "arcadia", "HEAD:refs/heads/feature-x"],
+			arcReplies: {
+				"info --json": { stdout: '{"branch":"feature-x","user_login":"darl"}' },
+				"push HEAD:users/darl/feature-x": {},
+			},
+			want: { stdout: "", code: 0 },
+		},
 		{
 			name: "implicit prefix injection",
 			argv: ["push", "arcadia", "feature-x"],

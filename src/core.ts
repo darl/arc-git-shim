@@ -301,6 +301,13 @@ export function stripGlobalFlags(argv: string[], cwd: string): [string[], string
 				continue
 			}
 			if (a === "--no-optional-locks" || a === "--literal-pathspecs") continue
+			// --git-dir points inside the same mount the cwd already identifies;
+			// swallowed (t3code's throttled status fetch runs `git --git-dir <d> fetch …`)
+			if (a === "--git-dir") {
+				i++
+				continue
+			}
+			if (a.startsWith("--git-dir=")) continue
 		}
 		out.push(a)
 	}
