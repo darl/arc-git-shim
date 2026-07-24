@@ -14,6 +14,8 @@
 //   --format=<fmt>      flag with captured value: accepts --format=X and
 //                       --format X (and -n5 for short flags); (-n|--max)=<v>
 //                       declares a one-of value flag
+//   -m=<msg...>         repeatable value flag: every occurrence captured in
+//                       argv order into args.list.<name> (git commit -m a -m b)
 //   <name>              required positional, captured     <name>? optional
 //   <name...>           variadic positional (must be last); <name...>? optional
 //   word                bare word = required sub-subcommand literal
@@ -111,7 +113,7 @@ interface SpecToken {
 	required: boolean
 	literals?: string[] // flag/valueflag: acceptable literal tokens
 	name?: string // positional / valueflag capture name; word: the literal
-	variadic?: boolean // positional: capture all remaining
+	variadic?: boolean // positional: capture all remaining; valueflag: repeatable
 }
 
 export interface CompiledSpec {
@@ -147,10 +149,10 @@ function compileSpecUncached(spec: string): CompiledSpec {
 			const inner = raw.slice(1, -1)
 			const variadic = inner.endsWith("...")
 			tokens.push({ kind: "positional", required, name: variadic ? inner.slice(0, -3) : inner, variadic })
-		} else if ((m = raw.match(/^(.+)=<([\w-]+)>$/))) {
-			// value flag: --format=<fmt> or (-n|--max-count)=<num>
+		} else if ((m = raw.match(/^(.+)=<([\w-]+)(\.\.\.)?>$/))) {
+			// value flag: --format=<fmt> or (-n|--max-count)=<num>; =<name...> repeatable
 			const lits = m[1]!.startsWith("(") && m[1]!.endsWith(")") ? m[1]!.slice(1, -1).split("|") : [m[1]!]
-			tokens.push({ kind: "valueflag", required, literals: lits, name: m[2]! })
+			tokens.push({ kind: "valueflag", required, literals: lits, name: m[2]!, variadic: m[3] !== undefined })
 		} else if (raw.startsWith("(") && raw.endsWith(")")) {
 			tokens.push({ kind: "flag", required, literals: raw.slice(1, -1).split("|") })
 		} else if ((m = raw.match(/^(-{1,2}[\w-]+=)\((.+)\)$/))) {
@@ -243,7 +245,7 @@ export function parseSpec(c: CompiledSpec, argv: string[]): Args | null {
 		}
 		const vt = valueToks.find(
 			(t) =>
-				!used.has(t) &&
+				(!used.has(t) || t.variadic) &&
 				t.literals!.some(
 					(lit) => a === lit || a.startsWith(lit + "=") || (isShortFlag(lit) && a.startsWith(lit) && a.length > 2),
 				),
@@ -261,7 +263,8 @@ export function parseSpec(c: CompiledSpec, argv: string[]): Args | null {
 			else value = a.slice(lit.length)
 			used.add(vt)
 			flags.add(lit)
-			pos[vt.name!] = value
+			if (vt.variadic) (list[vt.name!] ??= []).push(value)
+			else pos[vt.name!] = value
 			continue
 		}
 		if (swallow(a)) continue
@@ -409,6 +412,9 @@ export function arcRev(rev: string): string {
 	if (remote) return remote[1] === "HEAD" ? "trunk" : `arcadia/${remote[1]}`
 	const head = peeled.match(/^refs\/heads\/(.+)$/)
 	if (head) return head[1]!
+	// Short-form remote alias: origin/<x> → arcadia/<x> (same cross-cutting
+	// contract as isRemoteAlias; nobody names local arc branches origin/*).
+	if (peeled.startsWith("origin/")) return `arcadia/${peeled.slice("origin/".length)}`
 	return peeled
 }
 
