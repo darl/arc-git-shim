@@ -1,11 +1,19 @@
-// git fetch [--prune] [arcadia [<branch>]] → arc fetch [<branch>].
+// git fetch [--prune] [arcadia [<branch>]] → arc fetch.
 // Branch names literal (lens never touches the fetch side); --prune accepted
 // and dropped (arc has no prune; unfetch is manual). Exit-code tier.
-import { definePath, fail, isRemoteAlias, ok } from "../core"
+//
+// BARE FETCH IS NOT A PASSTHROUGH: git `fetch [origin]` refreshes EVERY
+// remote-tracking ref, but bare `arc fetch` refreshes only the current
+// branch's remote counterpart. Tools bare-fetch precisely so they can
+// re-resolve origin/trunk afterwards (t3code resolves it to a SHA and pins
+// new worktrees to it — the passthrough left worktrees on days-old trunk),
+// so trunk is fetched explicitly; the current branch keeps arc's bare-fetch
+// refresh, best-effort (a local-only branch has no remote to fetch).
+import { arcInfo, definePath, fail, isDetached, isExecResult, isRemoteAlias, ok } from "../core"
 
 export default definePath({
 	name: "fetch",
-	summary: "arc fetch passthrough; prune accepted and dropped",
+	summary: "arc fetch; bare fetch refreshes trunk + current branch",
 	spec: "fetch (--prune|-p)? --no-tags? (-q|--quiet)? <remote>? <branch>?",
 	refine: (args) => {
 		if (args.pos.remote !== undefined && args.pos.branch !== undefined) return isRemoteAlias(args.pos.remote)
@@ -24,17 +32,55 @@ export default definePath({
 				return fail(128, `fatal: arc-git: refspec '${branch}' not supported; fetch a plain branch name\n`)
 			branch = m[1]
 		}
-		const arcArgs = ["fetch"]
-		if (branch !== undefined) arcArgs.push(branch)
-		const r = await ctx.arc(arcArgs)
+		if (branch === undefined) {
+			const info = await arcInfo(ctx)
+			if (isExecResult(info)) return info
+			const t = await ctx.arc(["fetch", "trunk"])
+			if (t.code !== 0) return t
+			if (info.branch !== "trunk" && !isDetached(info.branch)) await ctx.arc(["fetch"])
+			return ok(t.stdout)
+		}
+		const r = await ctx.arc(["fetch", branch])
 		return r.code === 0 ? ok(r.stdout) : r
 	},
 
 	fixtures: [
 		{
-			name: "bare fetch",
+			name: "bare fetch refreshes trunk and the current branch",
 			argv: ["fetch"],
-			arcReplies: { fetch: {} },
+			arcReplies: {
+				"info --json": { stdout: '{"branch":"feat-x","user_login":"darl"}' },
+				"fetch trunk": {},
+				fetch: {},
+			},
+			want: { stdout: "", code: 0 },
+		},
+		{
+			name: "bare fetch on trunk skips the duplicate current-branch fetch",
+			argv: ["fetch", "origin"],
+			arcReplies: {
+				"info --json": { stdout: '{"branch":"trunk","user_login":"darl"}' },
+				"fetch trunk": {},
+			},
+			want: { stdout: "", code: 0 },
+		},
+		{
+			name: "current-branch fetch failure ignored (local-only branch)",
+			argv: ["fetch"],
+			arcReplies: {
+				"info --json": { stdout: '{"branch":"scratch","user_login":"darl"}' },
+				"fetch trunk": {},
+				fetch: { stderr: "error: branch scratch not found in remote\n", code: 1 },
+			},
+			want: { stdout: "", code: 0 },
+		},
+		{
+			name: "detached HEAD: trunk only",
+			argv: ["fetch"],
+			arcReplies: {
+				"info --json": { stdout: '{"branch":"a7819db772eed4b7b5a49b558b22f185464b80a0"}' },
+				"fetch trunk": {},
+			},
 			want: { stdout: "", code: 0 },
 		},
 		{
@@ -44,9 +90,13 @@ export default definePath({
 			want: { stdout: "", code: 0 },
 		},
 		{
-			name: "prune dropped",
+			name: "prune dropped, bare path taken",
 			argv: ["fetch", "--prune", "origin"],
-			arcReplies: { fetch: {} },
+			arcReplies: {
+				"info --json": { stdout: '{"branch":"feat-x","user_login":"darl"}' },
+				"fetch trunk": {},
+				fetch: {},
+			},
 			want: { stdout: "", code: 0 },
 		},
 		{
