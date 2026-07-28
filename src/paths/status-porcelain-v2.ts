@@ -73,8 +73,8 @@ export default definePath({
 					stdout:
 						'{"branch":"feature-x","remote":"users/darl/feature-x","hash":"a7819db772eed4b7b5a49b558b22f185464b80a0","user_login":"darl"}',
 				},
-				"log --format={commit} arcadia/users/darl/feature-x..HEAD": { stdout: "aaa\nbbb\n" },
-				"log --format={commit} HEAD..arcadia/users/darl/feature-x": { stdout: "" },
+				"log --format={commit} -n 1000 arcadia/users/darl/feature-x..HEAD": { stdout: "aaa\nbbb\n" },
+				"log --format={commit} -n 1000 HEAD..arcadia/users/darl/feature-x": { stdout: "" },
 				"status --json -u all": {
 					stdout:
 						'{"status":{"staged":[{"status":"new file","type":"file","path":"junk/darl/new.txt"}],"untracked":[{"status":"untracked","type":"file","path":"junk/darl/scratch.txt"}]}}',

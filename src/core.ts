@@ -381,9 +381,16 @@ export const arcInfo = (ctx: Ctx, opts?: ArcOpts): Promise<ArcInfo | ExecResult>
 export const isExecResult = (v: unknown): v is ExecResult =>
 	typeof v === "object" && v !== null && "code" in v && "stdout" in v
 
-/** Count commits in an arc range via one-line-per-commit log output. */
+/** Count commits in an arc range via one-line-per-commit log output.
+ * Enumeration is CAPPED: a count of COUNT_RANGE_CAP means "at least this
+ * many". Callers (status ab headers, rev-list --count) feed badges and
+ * zero/nonzero decisions, where exactness above the cap is worthless — but
+ * an uncapped walk is ruinous: a branch upstreamed to a stale same-named
+ * remote ref was 144k commits ahead, and enumerating that through arc log
+ * took ~20s PER STATUS POLL until the first push collapsed the range. */
+export const COUNT_RANGE_CAP = 1000
 export async function countRange(ctx: Ctx, range: string): Promise<number | ExecResult> {
-	const r = await ctx.arc(["log", "--format={commit}", range])
+	const r = await ctx.arc(["log", "--format={commit}", "-n", String(COUNT_RANGE_CAP), range])
 	if (r.code !== 0) return r
 	const s = r.stdout.trim()
 	return s === "" ? 0 : s.split("\n").length
