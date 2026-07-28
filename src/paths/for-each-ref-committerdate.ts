@@ -1,8 +1,11 @@
 // git for-each-ref --format=%(refname:short)%09%(committerdate:unix) refs/heads refs/remotes
 // Lists refs matching one or more patterns, formatted with %(...) placeholders
 // including %(committerdate:unix) — the Unix-epoch committer timestamp.
-// Local + remote branches come from `arc branch -a --json`; per-ref commit
-// dates come from `arc log --json -n 1 <branch>`.
+// ONE `arc branch -a -v --json` call supplies branches AND their tip commit
+// dates (`commit.date` per entry). Never fetch dates with per-ref `arc log`:
+// t3code polls this command several times a second (readBranchRecency, 15s
+// timeout) and a sequential N+1 over ~134 refs at ~120ms each took ~16s —
+// every poll timed out and spammed the server log.
 //
 // Supported placeholders: %(HEAD) %(refname) %(refname:short)
 // %(committerdate:unix) and %XX byte escapes (%09 tab, %00 NUL, etc.).
@@ -27,11 +30,7 @@ interface BranchEntry {
 	local?: boolean
 	name: string
 	current?: boolean
-}
-
-interface LogEntry {
-	commit: string
-	date: string
+	commit?: { date?: string }
 }
 
 const renderable = (fmt: string): boolean =>
@@ -108,14 +107,14 @@ export default definePath({
 		const fmt = args.pos.fmt!
 		const patterns = args.list.patterns ?? []
 
-		const entries = await arcJson<BranchEntry[]>(ctx, ["branch", "-a", "--json"])
+		const entries = await arcJson<BranchEntry[]>(ctx, ["branch", "-a", "-v", "--json"])
 		if (isExecResult(entries)) return entries
 
 		// Build ref objects: local → refs/heads/<name>, remote → refs/remotes/<name>
-		let refs: { refname: string; branch: string; current: boolean }[] = entries.map((e) => ({
+		let refs = entries.map((e) => ({
 			refname: e.local ? `refs/heads/${e.name}` : `refs/remotes/${e.name}`,
-			branch: e.name,
 			current: !!e.current,
+			unixDate: toUnix(e.commit?.date ?? ""),
 		}))
 
 		// Filter by patterns (a ref matches if ANY pattern matches)
@@ -124,16 +123,7 @@ export default definePath({
 		// Sort by refname (git for-each-ref default ordering)
 		refs.sort((a, b) => (a.refname < b.refname ? -1 : a.refname > b.refname ? 1 : 0))
 
-		// Fetch committer date for each ref via arc log --json -n 1
-		const lines: string[] = []
-		for (const r of refs) {
-			const log = await arcJson<LogEntry[]>(ctx, ["log", "--json", "-n", "1", r.branch])
-			if (isExecResult(log)) return log
-			const unixDate = toUnix(log[0]?.date ?? "")
-			lines.push(renderRef(fmt, r.refname, r.current, unixDate) + "\n")
-		}
-
-		return ok(lines.join(""))
+		return ok(refs.map((r) => renderRef(fmt, r.refname, r.current, r.unixDate) + "\n").join(""))
 	},
 
 	fixtures: [
@@ -141,25 +131,13 @@ export default definePath({
 			name: "short refname + tab + unix committerdate for heads and remotes",
 			argv: ["for-each-ref", "--format=%(refname:short)%09%(committerdate:unix)", "refs/heads", "refs/remotes"],
 			arcReplies: {
-				"branch -a --json": {
+				"branch -a -v --json": {
 					stdout: JSON.stringify([
-						{ local: true, name: "dev", current: true },
-						{ local: true, name: "trunk" },
-						{ name: "arcadia/trunk" },
-						{ name: "arcadia/users/darl/foo" },
+						{ local: true, name: "dev", current: true, commit: { date: "2026-07-20T12:00:00+03:00" } },
+						{ local: true, name: "trunk", commit: { date: "2026-07-21T09:30:00+03:00" } },
+						{ name: "arcadia/trunk", commit: { date: "2026-07-21T09:30:00+03:00" } },
+						{ name: "arcadia/users/darl/foo", commit: { date: "2026-07-19T18:00:00+03:00" } },
 					]),
-				},
-				"log --json -n 1 dev": {
-					stdout: JSON.stringify([{ commit: "aaa", date: "2026-07-20T12:00:00+03:00" }]),
-				},
-				"log --json -n 1 trunk": {
-					stdout: JSON.stringify([{ commit: "bbb", date: "2026-07-21T09:30:00+03:00" }]),
-				},
-				"log --json -n 1 arcadia/trunk": {
-					stdout: JSON.stringify([{ commit: "ccc", date: "2026-07-21T09:30:00+03:00" }]),
-				},
-				"log --json -n 1 arcadia/users/darl/foo": {
-					stdout: JSON.stringify([{ commit: "ddd", date: "2026-07-19T18:00:00+03:00" }]),
 				},
 			},
 			want: {
@@ -175,10 +153,10 @@ export default definePath({
 			name: "no matching refs returns empty",
 			argv: ["for-each-ref", "--format=%(refname:short)%09%(committerdate:unix)", "refs/heads/nonexistent"],
 			arcReplies: {
-				"branch -a --json": {
+				"branch -a -v --json": {
 					stdout: JSON.stringify([
-						{ local: true, name: "trunk", current: true },
-						{ name: "arcadia/trunk" },
+						{ local: true, name: "trunk", current: true, commit: { date: "2026-07-21T09:30:00+03:00" } },
+						{ name: "arcadia/trunk", commit: { date: "2026-07-21T09:30:00+03:00" } },
 					]),
 				},
 			},
