@@ -40,6 +40,7 @@ import p_for_each_ref_sorted from "./paths/for-each-ref-sorted"
 import p_for_each_ref from "./paths/for-each-ref"
 import p_log_cherry_mark_right_only from "./paths/log-cherry-mark-right-only"
 import p_log_format from "./paths/log-format"
+import p_log_no_merges_format from "./paths/log-no-merges-format"
 import p_log_plain from "./paths/log-plain"
 import p_ls_files_error_unmatch from "./paths/ls-files-error-unmatch"
 import p_ls_files_others_exclude_standard from "./paths/ls-files-others-exclude-standard"
@@ -140,6 +141,7 @@ export const paths: Path[] = [
 	p_for_each_ref,
 	p_log_cherry_mark_right_only,
 	p_log_format,
+	p_log_no_merges_format,
 	p_log_plain,
 	p_ls_files_error_unmatch,
 	p_ls_files_others_exclude_standard,
