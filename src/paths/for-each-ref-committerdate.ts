@@ -8,7 +8,11 @@
 // every poll timed out and spammed the server log.
 //
 // Supported placeholders: %(HEAD) %(refname) %(refname:short)
-// %(committerdate:unix) and %XX byte escapes (%09 tab, %00 NUL, etc.).
+// %(committerdate:unix) %(symref) and %XX byte escapes (%09 tab, %00 NUL,
+// etc.). %(symref) always renders empty: arc has no symbolic branch refs
+// (no arcadia/HEAD entry), and t3code's ref-snapshot parser only uses the
+// column to SKIP symbolic refs (`if (symbolicTarget) continue`), so empty
+// means every arc branch is kept — exactly git's output for plain refs.
 //
 // Collision avoidance: spec specificity is 2 (one required value-flag
 // --format), same as for-each-ref-remotes and for-each-ref-heads.  The key
@@ -24,7 +28,7 @@
 
 import { arcJson, definePath, isExecResult, ok } from "../core"
 
-const SUPPORTED = /^(HEAD|refname|refname:short|committerdate:unix)$/
+const SUPPORTED = /^(HEAD|refname|refname:short|committerdate:unix|symref)$/
 
 interface BranchEntry {
 	local?: boolean
@@ -92,6 +96,7 @@ function renderRef(fmt: string, refname: string, isCurrent: boolean, unixDate: s
 			if (ph === "HEAD") return isCurrent ? "*" : " "
 			if (ph === "refname") return refname
 			if (ph === "committerdate:unix") return unixDate
+			if (ph === "symref") return "" // arc branches are never symbolic
 			return short // refname:short
 		})
 		.replace(/%([0-9a-fA-F]{2})/g, (_full: string, hex: string) => String.fromCharCode(parseInt(hex, 16)))
@@ -146,6 +151,31 @@ export default definePath({
 					"trunk\t1784615400\n" +
 					"arcadia/trunk\t1784615400\n" +
 					"arcadia/users/darl/foo\t1784473200\n",
+				code: 0,
+			},
+		},
+		{
+			name: "t3code ref snapshot: full refname + unix date + empty symref column",
+			argv: [
+				"for-each-ref",
+				"--format=%(refname)%09%(committerdate:unix)%09%(symref)",
+				"refs/heads",
+				"refs/remotes",
+			],
+			arcReplies: {
+				"branch -a -v --json": {
+					stdout: JSON.stringify([
+						{ local: true, name: "dev", current: true, commit: { date: "2026-07-20T12:00:00+03:00" } },
+						{ local: true, name: "trunk", commit: { date: "2026-07-21T09:30:00+03:00" } },
+						{ name: "arcadia/trunk", commit: { date: "2026-07-21T09:30:00+03:00" } },
+					]),
+				},
+			},
+			want: {
+				stdout:
+					"refs/heads/dev\t1784538000\t\n" +
+					"refs/heads/trunk\t1784615400\t\n" +
+					"refs/remotes/arcadia/trunk\t1784615400\t\n",
 				code: 0,
 			},
 		},
