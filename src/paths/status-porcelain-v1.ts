@@ -3,6 +3,10 @@
 // with repo-root-relative paths, and -b emits "## branch...upstream" — both
 // captured from real arc. Run at the arc root so paths stay root-relative
 // (git porcelain paths are always root-relative).
+// QUOTING (verified on real arc, 2026-08-03, space + Cyrillic probe): arc
+// never C-quotes paths — output equals git under core.quotepath=off (bare
+// UTF-8), not git's default octal escaping. The shim swallows -c, so callers
+// passing `-c core.quotepath=off` (t3code does) get exactly what they asked.
 import { definePath, forwardUntracked } from "../core"
 
 export default definePath({

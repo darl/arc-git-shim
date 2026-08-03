@@ -1,8 +1,11 @@
 // git status --porcelain=v1 -z [--renames|--no-renames] [-b] [-u…].
 // -z NUL-terminates each entry (instead of LF) and disables C-quoting of
-// paths.  --renames/--no-renames are both no-ops: arc status -s never
-// detects renames, so it already emits separate A/D entries.  We run arc
-// status -s (same as the non-z porcelain-v1 path) and swap every LF for NUL.
+// paths.  VERIFIED on real arc (2026-08-03, space + Cyrillic probe): arc
+// status -s never C-quotes, so the plain LF→NUL swap yields exactly git's
+// -z bytes — no unquoting needed.  --renames/--no-renames are both no-ops:
+// arc status -s never detects renames, so it already emits separate A/D
+// entries.  We run arc status -s (same as the non-z porcelain-v1 path) and
+// swap every LF for NUL.
 import { definePath, forwardUntracked, ok } from "../core"
 
 export default definePath({
