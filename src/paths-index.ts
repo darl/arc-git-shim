@@ -76,6 +76,7 @@ import p_rev_parse_toplevel_git_dir_abbrev_ref from "./paths/rev-parse-toplevel-
 import p_rev_parse_verify from "./paths/rev-parse-verify"
 import p_show_blob from "./paths/show-blob"
 import p_show_commit from "./paths/show-commit"
+import p_show_format_quiet from "./paths/show-format-quiet"
 import p_show_ref_verify from "./paths/show-ref-verify"
 import p_stash from "./paths/stash"
 import p_status_long from "./paths/status-long"
@@ -178,6 +179,7 @@ export const paths: Path[] = [
 	p_rev_parse_verify,
 	p_show_blob,
 	p_show_commit,
+	p_show_format_quiet,
 	p_show_ref_verify,
 	p_stash,
 	p_status_long,
