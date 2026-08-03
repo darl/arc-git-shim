@@ -38,6 +38,7 @@ import p_for_each_ref_committerdate from "./paths/for-each-ref-committerdate"
 import p_for_each_ref_multi_pattern from "./paths/for-each-ref-multi-pattern"
 import p_for_each_ref_remotes from "./paths/for-each-ref-remotes"
 import p_for_each_ref_sorted from "./paths/for-each-ref-sorted"
+import p_for_each_ref_upstream_remotename from "./paths/for-each-ref-upstream-remotename"
 import p_for_each_ref from "./paths/for-each-ref"
 import p_log_cherry_mark_right_only from "./paths/log-cherry-mark-right-only"
 import p_log_format from "./paths/log-format"
@@ -141,6 +142,7 @@ export const paths: Path[] = [
 	p_for_each_ref_multi_pattern,
 	p_for_each_ref_remotes,
 	p_for_each_ref_sorted,
+	p_for_each_ref_upstream_remotename,
 	p_for_each_ref,
 	p_log_cherry_mark_right_only,
 	p_log_format,
