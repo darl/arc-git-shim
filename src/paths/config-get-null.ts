@@ -2,7 +2,7 @@
 // value terminator from \n to \0. Reads from the shim-local config store,
 // same as the plain --get path. The --null flag is not in the base config
 // path's spec, so shapes with --null fall through here.
-import { definePath, fail, ok } from "../core"
+import { configKey, definePath, fail, ok } from "../core"
 
 export default definePath({
 	name: "config-get-null",
@@ -10,8 +10,7 @@ export default definePath({
 	spec: "config --local? (-z|--null) (--get|--get-all) <key>",
 
 	async run(args, ctx) {
-		const key = args.pos.key!
-		const v = ctx.config.get(key)
+		const v = ctx.config.get(configKey(args.pos.key!))
 		return v === undefined ? fail(1, "") : ok(`${v}\0`)
 	},
 

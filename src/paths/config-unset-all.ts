@@ -3,7 +3,7 @@
 // key, so --unset-all is equivalent to a plain delete. Same contract as
 // the main config path: orca must read back what it writes; --local is
 // accepted and implied. Like git, exit 5 when the key was not set.
-import { definePath, fail, ok } from "../core"
+import { configKey, definePath, fail, ok } from "../core"
 
 export default definePath({
 	name: "config-unset-all",
@@ -11,8 +11,7 @@ export default definePath({
 	spec: "config --local? --unset-all <key>",
 
 	async run(args, ctx) {
-		const key = args.pos.key!
-		if (!ctx.config.delete(key)) return fail(5, "")
+		if (!ctx.config.delete(configKey(args.pos.key!))) return fail(5, "")
 		return ok()
 	},
 

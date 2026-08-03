@@ -2,9 +2,11 @@
 // to arc config. Contract: orca must read back what it writes
 // (push.autoSetupRemote, branch.<b>.*). Covers: set, --get, --get-regexp,
 // --unset, --remove-section; --local is accepted and implied.
+// Keys canonicalize like git's (configKey: section+variable lowercased), so
+// spelling variants hit the same entry and --list prints lowercase names.
 // `config --file <f> ...` (orca probes .gitmodules) → nothing is ever set in
 // foreign files → --get exits 1 (unset), writes are refused.
-import { definePath, fail, ok } from "../core"
+import { configKey, definePath, fail, ok } from "../core"
 
 export default definePath({
 	name: "config",
@@ -20,7 +22,7 @@ export default definePath({
 			!["--get", "--get-all", "--get-regexp", "--unset", "--remove-section"].some((f) => args.flags.has(f))),
 
 	async run(args, ctx) {
-		const key = args.pos.key!
+		const key = configKey(args.pos.key!)
 		if (args.pos.file !== undefined) {
 			// foreign config files (e.g. .gitmodules) are always empty here
 			if (args.flags.has("--get") || args.flags.has("--get-regexp") || args.flags.has("--get-all"))
@@ -32,12 +34,15 @@ export default definePath({
 			return v === undefined ? fail(1, "") : ok(`${v}\n`)
 		}
 		if (args.flags.has("--get-regexp")) {
+			// the argument is a regexp matched against canonical key names —
+			// use it raw (configKey would mangle pattern syntax)
+			const pattern = args.pos.key!
 			let re: RegExp
 			try {
-				re = new RegExp(key)
+				re = new RegExp(pattern)
 			} catch {
 				// ret 6 is git-config's documented "invalid regexp" code
-				return fail(6, `error: invalid key pattern: ${key}\n`)
+				return fail(6, `error: invalid key pattern: ${pattern}\n`)
 			}
 			const hits = [...ctx.config.entries()].filter(([k]) => re.test(k)).sort()
 			if (!hits.length) return fail(1, "")
@@ -48,13 +53,17 @@ export default definePath({
 			return ok()
 		}
 		if (args.flags.has("--remove-section")) {
+			// the argument is section[.subsection]: only the SECTION half is
+			// case-insensitive (configKey would wrongly lowercase a subsection)
+			const parts = args.pos.key!.split(".")
+			const section = [parts[0]!.toLowerCase(), ...parts.slice(1)].join(".")
 			let removed = false
 			for (const k of [...ctx.config.keys()])
-				if (k === key || k.startsWith(key + ".")) {
+				if (k === section || k.startsWith(section + ".")) {
 					ctx.config.delete(k)
 					removed = true
 				}
-			return removed ? ok() : fail(128, `fatal: no such section: ${key}\n`)
+			return removed ? ok() : fail(128, `fatal: no such section: ${section}\n`)
 		}
 		if (args.pos.value !== undefined) {
 			ctx.config.set(key, args.pos.value)
@@ -107,6 +116,13 @@ export default definePath({
 			config: { "branch.feature-x.remote": "arcadia" },
 			arcReplies: {},
 			want: { stdout: "", code: 0 },
+		},
+		{
+			name: "key spelling variants hit the same entry (git canonicalization)",
+			argv: ["config", "--get", "push.AUTOSETUPREMOTE"],
+			config: { "push.autoSetupRemote": "true" },
+			arcReplies: {},
+			want: { stdout: "true\n", code: 0 },
 		},
 		{
 			name: "invalid regexp exits 6 like git-config",

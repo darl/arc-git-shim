@@ -13,10 +13,9 @@ import { arcJson, definePath, isExecResult, isRemoteAlias, ok } from "../core"
 interface ArcBranch {
 	local?: boolean | null
 	name: string
+	remote?: string | null
 	commit?: { id?: string }
 }
-
-const GLOB_CHARS = /[*?]/
 
 /** fnmatch-style glob → anchored regex (* = .*, ? = .). */
 function globToRe(glob: string): RegExp {
@@ -29,12 +28,12 @@ function globToRe(glob: string): RegExp {
 	return new RegExp("^" + re + "$")
 }
 
-/** git ls-remote pattern semantics: a bare (globless) pattern matches the full
- * ref OR refs/heads/<pattern>; a glob pattern is wildmatched against the full
- * refname. */
+/** git ls-remote tail-match (builtin/ls-remote.c): every pattern is
+ * wildmatched as "*\/<pattern>" against "/<ref>", so a bare name matches
+ * whole trailing path components (`feature-x` matches
+ * refs/heads/users/darl/feature-x) and full-ref patterns still match. */
 function refMatches(ref: string, pattern: string): boolean {
-	if (GLOB_CHARS.test(pattern)) return globToRe(pattern).test(ref)
-	return ref === pattern || ref === `refs/heads/${pattern}`
+	return globToRe(`*/${pattern}`).test(`/${ref}`)
 }
 
 export default definePath({
@@ -49,9 +48,30 @@ export default definePath({
 
 		// Remote-tracking entries (local falsy) carry the canonical remote ref
 		// in `name` prefixed by the remote name; strip `arcadia/` → ref path.
-		let refs = branches
-			.filter((b) => !b.local && b.commit?.id && b.name.startsWith("arcadia/"))
-			.map((b) => ({ ref: `refs/heads/${b.name.slice("arcadia/".length)}`, hash: b.commit!.id! }))
+		const seen = new Set<string>()
+		let refs: { ref: string; hash: string }[] = []
+		for (const b of branches) {
+			if (!b.local && b.commit?.id && b.name.startsWith("arcadia/")) {
+				const ref = `refs/heads/${b.name.slice("arcadia/".length)}`
+				if (!seen.has(ref)) {
+					seen.add(ref)
+					refs.push({ ref, hash: b.commit.id })
+				}
+			}
+		}
+		// Server branches arc knows only through a LOCAL branch's upstream
+		// (remote field, no arcadia/ row) would otherwise be invisible.
+		// APPROXIMATION: the hash is the local tip — the true remote tip is
+		// unknown without a fetch; existence matters more here than exactness.
+		for (const b of branches) {
+			if (b.local && b.commit?.id && b.remote?.startsWith("arcadia/")) {
+				const ref = `refs/heads/${b.remote.slice("arcadia/".length)}`
+				if (!seen.has(ref)) {
+					seen.add(ref)
+					refs.push({ ref, hash: b.commit.id })
+				}
+			}
+		}
 
 		const patterns = args.list.patterns ?? []
 		if (patterns.length > 0) refs = refs.filter((r) => patterns.some((p) => refMatches(r.ref, p)))
@@ -97,7 +117,23 @@ export default definePath({
 				stdout:
 					"a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2\trefs/heads/test-wt\n" +
 					"8413edbd13cd068677098022e4948f9fa46dc7c2\trefs/heads/trunk\n" +
+					"d37ffc32fc81f2bb26dbc9f5e4c9c964736c7910\trefs/heads/users/darl/agent-spawner-rng-fix\n" +
 					"b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3\trefs/heads/users/darl/feature-x\n",
+				code: 0,
+			},
+		},
+		{
+			name: "bare pattern tail-matches nested branches (git tail_match)",
+			argv: ["ls-remote", "--heads", "origin", "feature-x"],
+			arcReplies: {
+				"branch -av --json": {
+					stdout:
+						'[{"name":"arcadia/users/darl/feature-x","local":null,"commit":{"id":"b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3"}},' +
+						'{"name":"arcadia/feature-xl","local":null,"commit":{"id":"8413edbd13cd068677098022e4948f9fa46dc7c2"}}]',
+				},
+			},
+			want: {
+				stdout: "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3\trefs/heads/users/darl/feature-x\n",
 				code: 0,
 			},
 		},

@@ -3,7 +3,7 @@
 // holds at most one value per key, so --replace-all is equivalent to a plain
 // set. Same contract as the main config path: orca must read back what it
 // writes; --local is accepted and implied.
-import { definePath, ok } from "../core"
+import { configKey, definePath, ok } from "../core"
 
 export default definePath({
 	name: "config-replace-all",
@@ -11,9 +11,7 @@ export default definePath({
 	spec: "config --local? --replace-all <key> <value>",
 
 	async run(args, ctx) {
-		const key = args.pos.key!
-		const value = args.pos.value!
-		ctx.config.set(key, value)
+		ctx.config.set(configKey(args.pos.key!), args.pos.value!)
 		return ok()
 	},
 

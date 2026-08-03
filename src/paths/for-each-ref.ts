@@ -55,5 +55,15 @@ export default definePath({
 			},
 			want: { stdout: "feature-x\n", code: 0 },
 		},
+		{
+			name: "character classes match (fnmatch [ab] semantics)",
+			argv: ["for-each-ref", "--format=%(refname:short)", "refs/heads/feature-[xy]"],
+			arcReplies: {
+				"branch --json": {
+					stdout: '[{"local":true,"name":"feature-x"},{"local":true,"name":"feature-z"}]',
+				},
+			},
+			want: { stdout: "feature-x\n", code: 0 },
+		},
 	],
 })

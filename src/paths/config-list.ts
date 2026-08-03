@@ -24,7 +24,7 @@ export default definePath({
 			config: { "push.autoSetupRemote": "true", "branch.main.remote": "arcadia" },
 			arcReplies: {},
 			want: {
-				stdout: "branch.main.remote=arcadia\npush.autoSetupRemote=true\n",
+				stdout: "branch.main.remote=arcadia\npush.autosetupremote=true\n",
 				code: 0,
 			},
 		},
@@ -34,7 +34,7 @@ export default definePath({
 			config: { "push.autoSetupRemote": "true", "branch.main.remote": "arcadia" },
 			arcReplies: {},
 			want: {
-				stdout: "branch.main.remote\narcadia\0push.autoSetupRemote\ntrue\0",
+				stdout: "branch.main.remote\narcadia\0push.autosetupremote\ntrue\0",
 				code: 0,
 			},
 		},

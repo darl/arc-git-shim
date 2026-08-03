@@ -3,6 +3,7 @@ import { createHash } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
+import { configKey } from "./core"
 import type { ArcOpts, Ctx, ExecResult } from "./core"
 
 export const SHIM_HOME = process.env.ARC_GIT_HOME ?? join(homedir(), ".arc-git")
@@ -12,7 +13,14 @@ const storeFile = (arcRoot: string): string =>
 
 export function loadConfigStore(arcRoot: string): Map<string, string> {
 	try {
-		return new Map(Object.entries(JSON.parse(readFileSync(storeFile(arcRoot), "utf8"))))
+		// configKey on load migrates legacy stores written before key
+		// canonicalization existed (mixed-case keys would be unreachable)
+		return new Map(
+			Object.entries(JSON.parse(readFileSync(storeFile(arcRoot), "utf8"))).map(([k, v]) => [
+				configKey(k),
+				v as string,
+			]),
+		)
 	} catch {
 		return new Map()
 	}

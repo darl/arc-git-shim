@@ -65,7 +65,8 @@ function globMatch(pat: string[], pi: number, ref: string[], ri: number): boolea
 	return wild(seg, 0, ref[ri]!, 0) && globMatch(pat, pi + 1, ref, ri + 1)
 }
 
-/** Single path component: `*` = any chars, `?` = one char, else literal. */
+/** Single path component: `*` = any chars, `?` = one char, `[...]` = fnmatch
+ * character class (ranges, `!`/`^` negation), else literal. */
 function wild(pat: string, pi: number, str: string, si: number): boolean {
 	if (pi === pat.length) return si === str.length
 	const c = pat[pi]!
@@ -74,6 +75,29 @@ function wild(pat: string, pi: number, str: string, si: number): boolean {
 		return false
 	}
 	if (c === "?") return si < str.length && wild(pat, pi + 1, str, si + 1)
+	if (c === "[") {
+		// "]" as the first class char is literal, hence the +2 search start
+		const end = pat.indexOf("]", pi + 2)
+		if (end !== -1) {
+			if (si >= str.length) return false
+			let cls = pat.slice(pi + 1, end)
+			let neg = false
+			if (cls.startsWith("!") || cls.startsWith("^")) {
+				neg = true
+				cls = cls.slice(1)
+			}
+			let hit = false
+			for (let k = 0; k < cls.length; k++) {
+				if (cls[k + 1] === "-" && k + 2 < cls.length) {
+					if (cls[k]! <= str[si]! && str[si]! <= cls[k + 2]!) hit = true
+					k += 2
+				} else if (cls[k] === str[si]) hit = true
+			}
+			if (hit === neg) return false
+			return wild(pat, end + 1, str, si + 1)
+		}
+		// unterminated class: treat "[" as a literal, like fnmatch
+	}
 	return si < str.length && c === str[si] && wild(pat, pi + 1, str, si + 1)
 }
 

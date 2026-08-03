@@ -1,7 +1,7 @@
 // Generic fixture harness: runs a path's embedded fixtures against a canned-arc
 // Ctx. This is the whole per-path test story: pi writes fixtures, this executes
 // them — both under `bun test` and inside the compiled binary (selftest).
-import { compileSpec, parseSpec } from "./core"
+import { compileSpec, configKey, parseSpec } from "./core"
 import type { Ctx, ExecResult, Fixture, Path } from "./core"
 
 const FIXTURE_ROOT = "/arcadia"
@@ -19,7 +19,9 @@ export function cannedCtx(fx: Fixture, calls: string[]): Ctx {
 		cwd: fx.cwd ?? FIXTURE_ROOT,
 		arcRoot: FIXTURE_ROOT,
 		pathExists: (p) => (fx.existingPaths ?? []).includes(p),
-		config: new Map(Object.entries(fx.config ?? {})),
+		// seeds normalize like loadConfigStore does — the store never holds
+		// non-canonical keys in prod
+		config: new Map(Object.entries(fx.config ?? {}).map(([k, v]) => [configKey(k), v])),
 		async arc(args) {
 			const key = args.join(" ")
 			calls.push(`arc ${key}`)

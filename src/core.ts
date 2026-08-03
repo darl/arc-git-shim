@@ -482,6 +482,17 @@ export const statusLetter = (word: string): string =>
 	(({ "new file": "A", modified: "M", deleted: "D", renamed: "R", copied: "C" }) as Record<string, string>)[word] ??
 	"M"
 
+/** git canonicalizes config keys: the section and the variable are
+ * case-insensitive (stored lowercase), a subsection between them is
+ * case-sensitive. "push.AutoSetupRemote" → "push.autosetupremote";
+ * "branch.Feature-X.remote" keeps "Feature-X". Apply to every store
+ * read/write so spelling variants hit the same entry, like git. */
+export function configKey(key: string): string {
+	const parts = key.split(".")
+	if (parts.length === 1) return key.toLowerCase()
+	return [parts[0]!.toLowerCase(), ...parts.slice(1, -1), parts[parts.length - 1]!.toLowerCase()].join(".")
+}
+
 /** Forward git's -u/--untracked-files flag to arc status (which spells it
  * `-u <mode>`): -uall / --untracked-files=all → "-u all", etc. */
 export const forwardUntracked = (args: Args, arcArgs: string[]): void => {
