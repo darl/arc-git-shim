@@ -147,9 +147,25 @@ ${example2}
 - \`arc <subcommand> --help\` tells you what arc supports. arc log/branch/status support --json — prefer structured output over parsing prose.
 - Note: arc's log --format uses {placeholder} syntax; git's %X placeholders do NOT work in arc.
 - Fixtures are MANDATORY (they double as dispatch-collision probes). Canned arc replies are keyed by the arc argv joined with spaces (no "arc " prefix).
+- PRIVACY — this repository is public on GitHub and your file is auto-committed. Nothing you saw in the calling tree may appear in your file: no real directory or file paths, branch names, commit subjects, PR/revision numbers, or the cwd/root paths above — not in the spec, not in fixture argv, not in canned replies, not in comments. Probe the real tree only to learn output FORMATS, then write fixtures with synthetic values of the same byte shape (paths like dir/sub/file.txt, branches like users/darl/feature-x, invented 40-hex hashes, made-up commit subjects and numbers).
 - You may run \`bun test\` and \`bun scripts/gen.ts\` here yourself to check your work before finishing.
 
 When you are done, reply with a one-line summary naming the file you created. I will then run the full gate and report any failures back to you for repair.`
+}
+
+/** Public-safe rendering of the triggering argv. Auto-commits are pushed to
+ * the public shim repo, and operands are real content from the calling tree
+ * (paths, branch names, message text) — keep the subcommand and flag shape,
+ * count the rest. The episode log keeps the full argv locally. */
+const publicArgv = (argv: string[]): string => {
+	const parts: string[] = []
+	let operands = 0
+	for (const [i, a] of argv.entries()) {
+		if (i === 0 || a === "--" || a.startsWith("-")) parts.push(a.replace(/^(--?[^=]+)=.+$/, "$1=…"))
+		else operands++
+	}
+	if (operands > 0) parts.push(`<${operands} operand${operands === 1 ? "" : "s"}>`)
+	return parts.join(" ")
 }
 
 async function main(): Promise<void> {
@@ -226,7 +242,7 @@ async function main(): Promise<void> {
 	clearNegativeCache() // any successful rebuild clears failure memory
 
 	if (!hand) {
-		const msg = `learn: ${spec ?? payload.argv.join(" ")}\n\nTriggered by: git ${payload.argv.join(" ")}\nEpisode log: ${logFile}\n`
+		const msg = `learn: ${spec ?? publicArgv(payload.argv)}\n\nTriggered by: git ${publicArgv(payload.argv)}\nEpisode log: ${logFile}\n`
 		await run(["git", "add", "src/paths", "src/paths-index.ts"])
 		const c = await run(["git", "commit", "-m", msg])
 		log(`-- auto-commit: exit ${c.code}\n${c.out}`)
