@@ -8,7 +8,7 @@ import { definePath, ok } from "../core"
 export default definePath({
 	name: "config-list",
 	summary: "list all shim-local config entries (newline or NUL terminated)",
-	spec: "config --list (-z|--null)?",
+	spec: "config --local? --list (-z|--null)?",
 
 	async run(args, ctx) {
 		const entries = [...ctx.config.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))

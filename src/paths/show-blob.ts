@@ -13,7 +13,15 @@ function rootRelative(revpath: string, cwd: string, root: string): string {
 	const rev = revpath.slice(0, i)
 	let p = revpath.slice(i + 1)
 	if (p.startsWith("./") || p.startsWith("../")) {
-		const abs = new URL(p, `file://${cwd.endsWith("/") ? cwd : cwd + "/"}`).pathname
+		// lexical resolve against cwd — URL-based resolution percent-encodes
+		// spaces and mangles "%" in file names
+		const segs = cwd.split("/").filter(Boolean)
+		for (const s of p.split("/")) {
+			if (s === "" || s === ".") continue
+			if (s === "..") segs.pop()
+			else segs.push(s)
+		}
+		const abs = "/" + segs.join("/")
 		p = abs.startsWith(root + "/") ? abs.slice(root.length + 1) : abs
 	}
 	return `${rev}:${p}`
@@ -55,6 +63,15 @@ export default definePath({
 				"show HEAD:junk/darl/b.txt": { stdout: "cwd-relative contents\n" },
 			},
 			want: { stdout: "cwd-relative contents\n", code: 0 },
+		},
+		{
+			name: "spaces in cwd-relative paths survive resolution",
+			argv: ["show", "HEAD:./a b.txt"],
+			cwd: "/arcadia/junk/darl",
+			arcReplies: {
+				"show HEAD:junk/darl/a b.txt": { stdout: "spaced contents\n" },
+			},
+			want: { stdout: "spaced contents\n", code: 0 },
 		},
 		{
 			name: "index blob falls back to HEAD",

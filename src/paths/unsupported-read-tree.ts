@@ -5,7 +5,7 @@
 // unsupported-commit-tree, unsupported-update-ref.)
 import { definePath, fail } from "../core"
 
-const MSG = "fatal: arc-git: read-tree is not supported in arc checkouts (no git object database)\n"
+const MSG = "fatal: 'read-tree' is not supported in an arc repository (no git object database)\n"
 
 export default definePath({
 	name: "unsupported-read-tree",

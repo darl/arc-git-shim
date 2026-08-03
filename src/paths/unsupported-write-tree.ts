@@ -1,7 +1,7 @@
 // git write-tree — see unsupported-read-tree for the checkpoint-plumbing story.
 import { definePath, fail } from "../core"
 
-const MSG = "fatal: arc-git: write-tree is not supported in arc checkouts (no git object database)\n"
+const MSG = "fatal: 'write-tree' is not supported in an arc repository (no git object database)\n"
 
 export default definePath({
 	name: "unsupported-write-tree",

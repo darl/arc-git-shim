@@ -60,6 +60,7 @@ export function makeCtx(cwd: string, arcRoot: string, noPager = false): { ctx: C
 		arcRoot,
 		config,
 		arc: (args: string[], opts?: ArcOpts) => runArc(args, opts?.cwd ?? cwd, { interactive: opts?.interactive, noPager }),
+		pathExists: existsSync,
 	}
 	return { ctx, configSnapshot }
 }

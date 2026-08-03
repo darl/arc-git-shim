@@ -13,7 +13,10 @@ export default definePath({
 		// independent probes; both are read-only so firing the second before
 		// knowing the first succeeded is safe
 		const [mb, a] = await Promise.all([ctx.arc(["merge-base", a0, b0]), ctx.arc(["rev-parse", a0])])
-		if (mb.code !== 0 || a.code !== 0) return fail(128, `fatal: Not a valid commit name ${args.pos.a}\n`)
+		// blame the rev that actually failed: <a> if it doesn't resolve, else
+		// <b> (merge-base needs both, so with <a> valid the culprit is <b>)
+		if (a.code !== 0) return fail(128, `fatal: Not a valid commit name ${args.pos.a}\n`)
+		if (mb.code !== 0) return fail(128, `fatal: Not a valid commit name ${args.pos.b}\n`)
 		return mb.stdout.trim() === a.stdout.trim() ? ok() : fail(1, "")
 	},
 
@@ -35,6 +38,15 @@ export default definePath({
 				"rev-parse HEAD": { stdout: "a7819db772eed4b7b5a49b558b22f185464b80a0\n" },
 			},
 			want: { stdout: "", stderr: "", code: 1 },
+		},
+		{
+			name: "bad second rev is blamed, not the first",
+			argv: ["merge-base", "--is-ancestor", "trunk", "nonexistent"],
+			arcReplies: {
+				"merge-base trunk nonexistent": { stderr: "error: unknown reference 'nonexistent'\n", code: 1 },
+				"rev-parse trunk": { stdout: "c79064cbea91ca389afe153a347d588452fe50df\n" },
+			},
+			want: { stdout: "", stderr: "fatal: Not a valid commit name nonexistent\n", code: 128 },
 		},
 		{
 			// orca passes the qualified form from our own symbolic-ref answer

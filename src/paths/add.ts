@@ -5,8 +5,11 @@ export default definePath({
 	name: "add",
 	summary: "stage files via arc add",
 	spec: "add (-A|--all)? (-u|--update)? (-f|--force)? -v? --? <paths...>?",
-	// git errors on bare `add` with nothing to do; require a flag or paths
-	refine: (args) => args.flags.size > 0 || (args.list.paths ?? []).length > 0,
+	// git needs something to stage: paths or a selection flag. -v/-f/-- alone
+	// select nothing ("Nothing specified, nothing added.") — those shapes stay
+	// learnable so the real git bytes get codified, not guessed.
+	refine: (args) =>
+		["-A", "--all", "-u", "--update"].some((f) => args.flags.has(f)) || (args.list.paths ?? []).length > 0,
 
 	async run(args, ctx) {
 		const arcArgs = ["add"]

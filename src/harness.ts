@@ -18,6 +18,7 @@ export function cannedCtx(fx: Fixture, calls: string[]): Ctx {
 	return {
 		cwd: fx.cwd ?? FIXTURE_ROOT,
 		arcRoot: FIXTURE_ROOT,
+		pathExists: (p) => (fx.existingPaths ?? []).includes(p),
 		config: new Map(Object.entries(fx.config ?? {})),
 		async arc(args) {
 			const key = args.join(" ")

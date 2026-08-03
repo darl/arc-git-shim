@@ -10,8 +10,14 @@ export default definePath({
 	name: "config",
 	summary: "shim-local config store (get/set/regexp/unset)",
 	spec: "config --local? (--get|--get-regexp|--unset|--remove-section|--get-all)? --file=<file>? <key>? <value>?",
-	// bare `config` with no key does nothing useful; require a key
-	refine: (args) => args.pos.key !== undefined,
+	// bare `config` with no key does nothing useful; require a key.
+	// A trailing <value> next to a read/unset flag is git's value-pattern
+	// filter, which the shim doesn't implement — those shapes stay learnable
+	// instead of silently ignoring the pattern.
+	refine: (args) =>
+		args.pos.key !== undefined &&
+		(args.pos.value === undefined ||
+			!["--get", "--get-all", "--get-regexp", "--unset", "--remove-section"].some((f) => args.flags.has(f))),
 
 	async run(args, ctx) {
 		const key = args.pos.key!
@@ -30,7 +36,8 @@ export default definePath({
 			try {
 				re = new RegExp(key)
 			} catch {
-				return fail(129, `error: invalid regexp '${key}'\n`)
+				// ret 6 is git-config's documented "invalid regexp" code
+				return fail(6, `error: invalid key pattern: ${key}\n`)
 			}
 			const hits = [...ctx.config.entries()].filter(([k]) => re.test(k)).sort()
 			if (!hits.length) return fail(1, "")
@@ -100,6 +107,12 @@ export default definePath({
 			config: { "branch.feature-x.remote": "arcadia" },
 			arcReplies: {},
 			want: { stdout: "", code: 0 },
+		},
+		{
+			name: "invalid regexp exits 6 like git-config",
+			argv: ["config", "--get-regexp", "["],
+			arcReplies: {},
+			want: { stdout: "", stderr: "error: invalid key pattern: [\n", code: 6 },
 		},
 	],
 })

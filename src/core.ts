@@ -50,6 +50,9 @@ export interface Ctx {
 	arcRoot: string
 	/** Injected arc executor — real subprocess in prod, canned in tests. */
 	arc(args: string[], opts?: ArcOpts): Promise<ExecResult>
+	/** Filesystem existence probe — injected so paths stay hermetic (real fs
+	 * in prod, Fixture.existingPaths in tests); never reach for node:fs. */
+	pathExists(p: string): boolean
 	/** Shim-local config store (per arc root); persisted by the entry point. */
 	config: Map<string, string>
 }
@@ -75,6 +78,8 @@ export interface Fixture {
 	cwd?: string
 	/** Pre-seed the shim-local config store. */
 	config?: Record<string, string>
+	/** Paths ctx.pathExists answers true for (default: none exist). */
+	existingPaths?: string[]
 }
 
 export interface Path {

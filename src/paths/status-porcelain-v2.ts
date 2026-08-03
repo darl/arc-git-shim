@@ -7,7 +7,7 @@
 // those fields are placeholders (orca reads XY + path).
 // "changed" is the assumed key for modified-unstaged entries (unverified
 // against real arc — flagged for the acceptance ticket).
-import { arcInfo, arcJson, countRange, definePath, isExecResult, ok, statusLetter } from "../core"
+import { arcInfo, arcJson, countRange, definePath, isDetached, isExecResult, ok, statusLetter } from "../core"
 
 const Z40 = "0".repeat(40)
 
@@ -23,21 +23,26 @@ export default definePath({
 	spec: "status --porcelain=(v2|2) --branch? --untracked-files=(all|no|normal)? (-uall|-uno)?",
 
 	async run(args, ctx) {
-		const uAll = args.flags.has("--untracked-files=all") || args.flags.has("-uall")
+		const uMode =
+			args.flags.has("--untracked-files=all") || args.flags.has("-uall")
+				? "all"
+				: args.flags.has("--untracked-files=no") || args.flags.has("-uno")
+					? "no"
+					: "normal"
 		// this is orca's 3-second poll — start the status call up front and run
 		// the two range counts concurrently; only info→counts is a real dependency
-		const stPromise = arcJson<{ status?: Record<string, Entry[]> }>(
-			ctx,
-			["status", "--json", "-u", uAll ? "all" : "normal"],
-			{ cwd: ctx.arcRoot },
-		)
+		const stPromise = arcJson<{ status?: Record<string, Entry[]> }>(ctx, ["status", "--json", "-u", uMode], {
+			cwd: ctx.arcRoot,
+		})
 		const lines: string[] = []
 
 		if (args.flags.has("--branch")) {
 			const info = await arcInfo(ctx)
 			if (isExecResult(info)) return info
 			lines.push(`# branch.oid ${info.hash ?? Z40}`)
-			lines.push(`# branch.head ${info.branch ?? "(detached)"}`)
+			// arc reports detachment as a missing branch field OR a bare 40-hex
+			// hash in it; git prints "(detached)" either way
+			lines.push(`# branch.head ${isDetached(info.branch) ? "(detached)" : info.branch}`)
 			if (info.remote) {
 				const up = `arcadia/${info.remote}`
 				lines.push(`# branch.upstream ${up}`)
@@ -59,8 +64,10 @@ export default definePath({
 			// synthetic modes/OIDs: arc exposes neither file modes nor blob hashes
 			lines.push(`1 ${x}${y} N... 100644 100644 100644 ${Z40} ${Z40} ${p}`)
 		}
-		for (const e of (parsed.status?.untracked ?? []).slice().sort((a, b) => (a.path < b.path ? -1 : 1)))
-			lines.push(`? ${e.path}`)
+		// -uno must emit no untracked lines even if arc returns some
+		if (uMode !== "no")
+			for (const e of (parsed.status?.untracked ?? []).slice().sort((a, b) => (a.path < b.path ? -1 : 1)))
+				lines.push(`? ${e.path}`)
 
 		return ok(lines.length ? lines.join("\n") + "\n" : "")
 	},
@@ -105,6 +112,31 @@ export default definePath({
 				stdout:
 					"# branch.oid c79064cbea91ca389afe153a347d588452fe50df\n" +
 					"# branch.head local-only\n",
+				code: 0,
+			},
+		},
+		{
+			name: "-uno suppresses untracked lines even if arc reports them",
+			argv: ["status", "--porcelain=v2", "-uno"],
+			arcReplies: {
+				"status --json -u no": {
+					stdout: '{"status":{"untracked":[{"status":"untracked","type":"file","path":"junk/darl/x.txt"}]}}',
+				},
+			},
+			want: { stdout: "", code: 0 },
+		},
+		{
+			name: "detached HEAD renders (detached), not the raw hash",
+			argv: ["status", "--porcelain=v2", "--branch"],
+			arcReplies: {
+				"info --json": {
+					stdout:
+						'{"branch":"a7819db772eed4b7b5a49b558b22f185464b80a0","hash":"a7819db772eed4b7b5a49b558b22f185464b80a0"}',
+				},
+				"status --json -u normal": { stdout: '{"status":{}}' },
+			},
+			want: {
+				stdout: "# branch.oid a7819db772eed4b7b5a49b558b22f185464b80a0\n# branch.head (detached)\n",
 				code: 0,
 			},
 		},

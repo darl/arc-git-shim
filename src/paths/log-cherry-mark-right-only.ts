@@ -5,13 +5,26 @@
 // equivalent (same patch) commit exists on the left side, "+" otherwise.
 // --oneline renders one line per commit: "<mark> <short-hash> <subject>".
 //
-// Arc has no cherry-pick detection, so we compute patch-ids ourselves:
-// for every commit on BOTH sides we run `arc diff --git <parent> <commit>`
-// and hash the whitespace-stripped, sorted diff lines (an approximation of
-// git's patch-id that reliably identifies identical changes).  Right-side
-// commits whose hash collides with any left-side hash get "=".
+// Arc has no cherry-pick detection, so we compute patch-ids ourselves by
+// hashing `arc diff --git <parent> <commit>` (whitespace-stripped, sorted —
+// an approximation of git's patch-id).  BOUNDED, unlike git: enumeration is
+// capped at COUNT_RANGE_CAP per side, and patch-ids are computed ONLY for
+// commits whose subject line appears on both sides (cherry-picks keep
+// subjects in practice; one arc diff per commit over a trunk-sized side is
+// ruinous — see the COUNT_RANGE_CAP note in core.ts).  A reworded
+// cherry-pick therefore shows "+" instead of "=" — the safe direction: a
+// commit is shown as pending, never hidden as landed.
 import { createHash } from "node:crypto"
-import { arcJson, arcRev, type Ctx, definePath, fail, isExecResult, ok, SHORT_HASH_LEN } from "../core"
+import { arcJson, arcRev, COUNT_RANGE_CAP, type Ctx, definePath, fail, isExecResult, ok, SHORT_HASH_LEN } from "../core"
+
+/** Hard cap on patch-id probes per side (degenerate repeated-subject case). */
+const PATCH_ID_CAP = 100
+
+async function mapChunked<T, R>(items: T[], size: number, fn: (t: T) => Promise<R>): Promise<R[]> {
+	const out: R[] = []
+	for (let i = 0; i < items.length; i += size) out.push(...(await Promise.all(items.slice(i, i + size).map(fn))))
+	return out
+}
 
 interface ArcLogCommit {
 	commit: string
@@ -47,41 +60,37 @@ export default definePath({
 		const left = arcRev(leftRaw)
 		const right = arcRev(rightRaw)
 
+		const cap = ["-n", String(COUNT_RANGE_CAP)]
 		// Right-side commits: in right but not in left  (=  git A..B)
-		const rightCommits = await arcJson<ArcLogCommit[]>(ctx, ["log", "--json", `${left}..${right}`])
+		const rightCommits = await arcJson<ArcLogCommit[]>(ctx, ["log", "--json", ...cap, `${left}..${right}`])
 		if (isExecResult(rightCommits)) return rightCommits
 
 		// Nothing on the right → empty output (skip left-side work entirely)
 		if (rightCommits.length === 0) return ok("")
 
 		// Left-side commits: in left but not in right  (=  git B..A)
-		const leftCommits = await arcJson<ArcLogCommit[]>(ctx, ["log", "--json", `${right}..${left}`])
+		const leftCommits = await arcJson<ArcLogCommit[]>(ctx, ["log", "--json", ...cap, `${right}..${left}`])
 		if (isExecResult(leftCommits)) return leftCommits
 
-		// Build patch-id set from left-side commits
-		const leftPatchIds = new Set<string>()
-		for (const c of leftCommits) {
-			const parent = c.parents?.[0]
-			if (parent) {
-				const pid = await computePatchId(ctx, parent, c.commit)
-				if (pid) leftPatchIds.add(pid)
-			}
-		}
+		// Patch-ids only where a subject appears on both sides (see header)
+		const firstLine = (m: string) => m.split("\n")[0]!
+		const leftSubjects = new Set(leftCommits.map((c) => firstLine(c.message)))
+		const rightSubjects = new Set(rightCommits.map((c) => firstLine(c.message)))
+		const candidates = (side: ArcLogCommit[], other: Set<string>) =>
+			side.filter((c) => c.parents?.[0] !== undefined && other.has(firstLine(c.message))).slice(0, PATCH_ID_CAP)
+		const leftCand = candidates(leftCommits, rightSubjects)
+		const rightCand = candidates(rightCommits, leftSubjects)
+		const pid = (c: ArcLogCommit) => computePatchId(ctx, c.parents[0]!, c.commit)
+		const leftPatchIds = new Set((await mapChunked(leftCand, 8, pid)).filter(Boolean))
+		const rightPids = await mapChunked(rightCand, 8, pid)
+		const rightPatchId = new Map(rightCand.map((c, i) => [c.commit, rightPids[i]!]))
 
 		// Mark each right-side commit: "=" if equivalent on left, "+" otherwise
-		const lines: string[] = []
-		for (const c of rightCommits) {
-			const parent = c.parents?.[0]
-			let mark = "+"
-			if (parent) {
-				const pid = await computePatchId(ctx, parent, c.commit)
-				if (pid && leftPatchIds.has(pid)) mark = "="
-			}
-			const shortHash = c.commit.slice(0, SHORT_HASH_LEN)
-			const subject = c.message.split("\n")[0]!
-			lines.push(`${mark} ${shortHash} ${subject}`)
-		}
-
+		const lines = rightCommits.map((c) => {
+			const p = rightPatchId.get(c.commit)
+			const mark = p && leftPatchIds.has(p) ? "=" : "+"
+			return `${mark} ${c.commit.slice(0, SHORT_HASH_LEN)} ${firstLine(c.message)}`
+		})
 		return ok(lines.join("\n") + "\n")
 	},
 
@@ -90,7 +99,7 @@ export default definePath({
 			name: "one cherry-picked (=), one unique (+)",
 			argv: ["log", "--oneline", "--cherry-mark", "--right-only", "HEAD...arcadia/trunk", "--"],
 			arcReplies: {
-				"log --json HEAD..arcadia/trunk": {
+				"log --json -n 1000 HEAD..arcadia/trunk": {
 					stdout: JSON.stringify([
 						{
 							commit: "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
@@ -104,7 +113,7 @@ export default definePath({
 						},
 					]),
 				},
-				"log --json arcadia/trunk..HEAD": {
+				"log --json -n 1000 arcadia/trunk..HEAD": {
 					stdout: JSON.stringify([
 						{
 							commit: "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
@@ -124,12 +133,7 @@ export default definePath({
 						"diff --git a/foo.txt b/foo.txt\n" +
 						"--- a/foo.txt\n+++ b/foo.txt\n@@ -1,3 +1,3 @@\n line1\n-old\n+new\n line3\n",
 				},
-				// b2's diff is unique → "+"
-				"diff --git f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1 b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2": {
-					stdout:
-						"diff --git a/bar.txt b/bar.txt\n" +
-						"--- a/bar.txt\n+++ b/bar.txt\n@@ -1,3 +1,3 @@\n line1\n-x\n+y\n line3\n",
-				},
+				// b2's subject has no left-side counterpart → "+" with NO diff probe
 			},
 			want: { stdout: "+ b2b2b2b2b2b2 Add new feature\n= a1a1a1a1a1a1 Fix bug in parser\n", code: 0 },
 		},
@@ -137,7 +141,7 @@ export default definePath({
 			name: "no left-side commits — all unique (+)",
 			argv: ["log", "--oneline", "--cherry-mark", "--right-only", "HEAD...arcadia/trunk", "--"],
 			arcReplies: {
-				"log --json HEAD..arcadia/trunk": {
+				"log --json -n 1000 HEAD..arcadia/trunk": {
 					stdout: JSON.stringify([
 						{
 							commit: "d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4",
@@ -146,12 +150,8 @@ export default definePath({
 						},
 					]),
 				},
-				"log --json arcadia/trunk..HEAD": { stdout: "[]" },
-				"diff --git f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3 d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4": {
-					stdout:
-						"diff --git a/baz.txt b/baz.txt\n" +
-						"--- a/baz.txt\n+++ b/baz.txt\n@@ -1,3 +1,3 @@\n line1\n-a\n+b\n line3\n",
-				},
+				// empty left side → no subjects match → no diff probes at all
+				"log --json -n 1000 arcadia/trunk..HEAD": { stdout: "[]" },
 			},
 			want: { stdout: "+ d4d4d4d4d4d4 Standalone commit\n", code: 0 },
 		},
@@ -159,7 +159,7 @@ export default definePath({
 			name: "empty right side — no output",
 			argv: ["log", "--oneline", "--cherry-mark", "--right-only", "HEAD...arcadia/trunk", "--"],
 			arcReplies: {
-				"log --json HEAD..arcadia/trunk": { stdout: "[]" },
+				"log --json -n 1000 HEAD..arcadia/trunk": { stdout: "[]" },
 			},
 			want: { stdout: "", code: 0 },
 		},

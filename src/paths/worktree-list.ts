@@ -21,6 +21,9 @@ export default definePath({
 	name: "worktree-list",
 	summary: "porcelain worktree blocks from arc mount inventory",
 	spec: "worktree list --porcelain? -z?",
+	// real git rejects -z without --porcelain — keep that shape learnable
+	// rather than silently printing the human table
+	refine: (args) => !args.flags.has("-z") || args.flags.has("--porcelain"),
 
 	async run(args, ctx) {
 		const lst = await ctx.arc(["unmount", "--list"])
