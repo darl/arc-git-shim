@@ -3,14 +3,13 @@
 // --git-path.  In an arc tree the git dir is <arcRoot>/.arc, so this is pure
 // path math — no arc call needed.
 //
-// The spec grammar has no "repeated value flag" construct, so we capture
-// everything after --git-dir with `*` (required rest) and parse the
-// --git-path pairs ourselves in refine.  Only the space-separated form
-// (--git-path VALUE) is accepted; git's --git-path=VALUE equals form is NOT
-// recognised as the flag by git (it echoes the literal), so refine rejects it
-// and those shapes fall through to learning.
-import { posix } from "node:path"
-import { definePath, ok } from "../core"
+// We capture everything after --git-dir with `*` (required rest) and parse
+// the --git-path pairs ourselves in refine.  Only the space-separated form
+// (--git-path VALUE) is accepted here; the equals form (--git-path=VALUE,
+// which real git also accepts — see rev-parse-git-path's fixture) does not
+// fit the pair-walk, so refine rejects it and those combo shapes fall
+// through to learning.
+import { definePath, ok, relGitDir } from "../core"
 
 export default definePath({
 	name: "rev-parse-git-dir-git-paths",
@@ -29,8 +28,7 @@ export default definePath({
 	},
 
 	async run(args, ctx) {
-		const rel = posix.relative(ctx.cwd, ctx.arcRoot)
-		const gitDir = `${rel ? rel + "/" : ""}.arc`
+		const gitDir = relGitDir(ctx)
 		const lines: string[] = [gitDir]
 		const rest = args.list.rest ?? []
 		for (let i = 0; i < rest.length; i += 2) {

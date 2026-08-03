@@ -78,8 +78,6 @@ import p_show_commit from "./paths/show-commit"
 import p_show_ref_verify from "./paths/show-ref-verify"
 import p_stash from "./paths/stash"
 import p_status_long from "./paths/status-long"
-import p_status_porcelain_2 from "./paths/status-porcelain-2"
-import p_status_porcelain_v1_z_renames from "./paths/status-porcelain-v1-z-renames"
 import p_status_porcelain_v1_z from "./paths/status-porcelain-v1-z"
 import p_status_porcelain_v1 from "./paths/status-porcelain-v1"
 import p_status_porcelain_v2 from "./paths/status-porcelain-v2"
@@ -181,8 +179,6 @@ export const paths: Path[] = [
 	p_show_ref_verify,
 	p_stash,
 	p_status_long,
-	p_status_porcelain_2,
-	p_status_porcelain_v1_z_renames,
 	p_status_porcelain_v1_z,
 	p_status_porcelain_v1,
 	p_status_porcelain_v2,

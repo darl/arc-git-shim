@@ -2,33 +2,7 @@
 // arc has no --numstat; the shim parses one arc diff --git unified diff and
 // counts +/- lines per file (binary files → "-\t-\tpath", like git).
 // A lone rev diffs the working tree from merge-base(rev, HEAD) — expandDiffRev.
-import { definePath, expandDiffRev, isExecResult, ok } from "../core"
-
-function numstatFromUnified(diff: string): { add: number | "-"; del: number | "-"; path: string }[] {
-	const out: { add: number | "-"; del: number | "-"; path: string }[] = []
-	let cur: { add: number; del: number; path: string; binary: boolean } | null = null
-	const flush = () => {
-		if (cur) out.push(cur.binary ? { add: "-", del: "-", path: cur.path } : { add: cur.add, del: cur.del, path: cur.path })
-		cur = null
-	}
-	for (const line of diff.split("\n")) {
-		// cheap prefix guard: diffs are large and header lines are rare
-		if (line.startsWith("diff --git ")) {
-			const m = line.match(/^diff --git a\/(.*) b\/(.*)$/)
-			if (m) {
-				flush()
-				cur = { add: 0, del: 0, path: m[2]!, binary: false }
-				continue
-			}
-		}
-		if (!cur) continue
-		if (line.startsWith("Binary files") || line.startsWith("GIT binary patch")) cur.binary = true
-		else if (line.startsWith("+") && !line.startsWith("+++")) cur.add++
-		else if (line.startsWith("-") && !line.startsWith("---")) cur.del++
-	}
-	flush()
-	return out
-}
+import { definePath, expandDiffRev, isExecResult, numstatFromUnified, ok } from "../core"
 
 export default definePath({
 	name: "diff-numstat",

@@ -20,115 +20,45 @@
 //   • Existing paths' SUPPORTED set excludes committerdate:unix, so their
 //     refine REJECTS any format containing it → they hand off to us.
 //   • Our refine REQUIRES %(committerdate:unix) to be present, so we REJECT
-//     formats that only use HEAD/refname/refname:short → we never steal
+//     formats that only use HEAD/refname/refname:short — we never steal
 //     their fixtures.
 // Additionally, for-each-ref-remotes and for-each-ref-heads declare a single
 // positional, so an argv with ≥2 patterns never structurally matches them;
 // for-each-ref-sorted requires --sort, which our argv never carries.
-
-import { arcJson, definePath, isExecResult, ok } from "../core"
+import { definePath, isExecResult, ok } from "../core"
+import { byRefname, entryRefname, isoToUnix, listBranches, refMatches, renderRef, renderable } from "../refs"
 
 const SUPPORTED = /^(HEAD|refname|refname:short|committerdate:unix|symref)$/
-
-interface BranchEntry {
-	local?: boolean
-	name: string
-	current?: boolean
-	commit?: { date?: string }
-}
-
-const renderable = (fmt: string): boolean =>
-	/%\(committerdate:unix\)/.test(fmt) &&
-	[...fmt.matchAll(/%\(([^)]*)\)/g)].every((m) => SUPPORTED.test(m[1]!))
-
-// --- git ref glob matching (mirrors existing for-each-ref paths) ----------
-
-function refMatches(pattern: string, ref: string): boolean {
-	const p = pattern.replace(/\/+$/, "")
-	if (!/[*?\[]/.test(p)) return ref === p || ref.startsWith(p + "/")
-	return globMatch(p.split("/"), 0, ref.split("/"), 0)
-}
-
-function globMatch(pat: string[], pi: number, ref: string[], ri: number): boolean {
-	if (pi === pat.length) return ri === ref.length
-	const seg = pat[pi]!
-	if (seg === "**") {
-		for (let k = ri; k <= ref.length; k++) if (globMatch(pat, pi + 1, ref, k)) return true
-		return false
-	}
-	if (ri === ref.length) return false
-	return compMatch(seg, ref[ri]!) && globMatch(pat, pi + 1, ref, ri + 1)
-}
-
-function compMatch(pat: string, str: string): boolean {
-	return wild(pat, 0, str, 0)
-}
-
-function wild(pat: string, pi: number, str: string, si: number): boolean {
-	if (pi === pat.length) return si === str.length
-	const c = pat[pi]!
-	if (c === "*") {
-		for (let k = si; k <= str.length; k++) if (wild(pat, pi + 1, str, k)) return true
-		return false
-	}
-	if (c === "?") return si < str.length && wild(pat, pi + 1, str, si + 1)
-	return si < str.length && c === str[si] && wild(pat, pi + 1, str, si + 1)
-}
-
-// --- helpers ---------------------------------------------------------------
-
-function shortRef(refname: string): string {
-	if (refname.startsWith("refs/heads/")) return refname.slice("refs/heads/".length)
-	if (refname.startsWith("refs/remotes/")) return refname.slice("refs/remotes/".length)
-	return refname
-}
-
-/** Convert an ISO-8601 arc date to a Unix-epoch seconds string. */
-function toUnix(iso: string): string {
-	const ms = Date.parse(iso)
-	return isNaN(ms) ? "" : String(Math.floor(ms / 1000))
-}
-
-function renderRef(fmt: string, refname: string, isCurrent: boolean, unixDate: string): string {
-	const short = shortRef(refname)
-	return fmt
-		.replace(/%\(([^)]*)\)/g, (_full: string, ph: string) => {
-			if (ph === "HEAD") return isCurrent ? "*" : " "
-			if (ph === "refname") return refname
-			if (ph === "committerdate:unix") return unixDate
-			if (ph === "symref") return "" // arc branches are never symbolic
-			return short // refname:short
-		})
-		.replace(/%([0-9a-fA-F]{2})/g, (_full: string, hex: string) => String.fromCharCode(parseInt(hex, 16)))
-}
 
 export default definePath({
 	name: "for-each-ref-committerdate",
 	summary: "for-each-ref with %(committerdate:unix) and variadic patterns",
 	spec: "for-each-ref --format=<fmt> <patterns...>",
-	refine: (args) => renderable(args.pos.fmt!),
+	refine: (args) => /%\(committerdate:unix\)/.test(args.pos.fmt!) && renderable(args.pos.fmt!, SUPPORTED),
 
 	async run(args, ctx) {
-		const fmt = args.pos.fmt!
 		const patterns = args.list.patterns ?? []
-
-		const entries = await arcJson<BranchEntry[]>(ctx, ["branch", "-a", "-v", "--json"])
+		const entries = await listBranches(ctx, "-a", "-v")
 		if (isExecResult(entries)) return entries
-
-		// Build ref objects: local → refs/heads/<name>, remote → refs/remotes/<name>
-		let refs = entries.map((e) => ({
-			refname: e.local ? `refs/heads/${e.name}` : `refs/remotes/${e.name}`,
-			current: !!e.current,
-			unixDate: toUnix(e.commit?.date ?? ""),
-		}))
-
-		// Filter by patterns (a ref matches if ANY pattern matches)
-		refs = refs.filter((r) => patterns.some((p) => refMatches(p, r.refname)))
-
-		// Sort by refname (git for-each-ref default ordering)
-		refs.sort((a, b) => (a.refname < b.refname ? -1 : a.refname > b.refname ? 1 : 0))
-
-		return ok(refs.map((r) => renderRef(fmt, r.refname, r.current, r.unixDate) + "\n").join(""))
+		const refs = entries
+			.map((e) => ({
+				refname: entryRefname(e),
+				current: !!e.current,
+				unixDate: isoToUnix(e.commit?.date ?? ""),
+			}))
+			.filter((r) => patterns.some((p) => refMatches(p, r.refname)))
+			.sort(byRefname)
+		return ok(
+			refs
+				.map(
+					(r) =>
+						renderRef(args.pos.fmt!, r.refname, r.current, {
+							"committerdate:unix": r.unixDate,
+							symref: "", // arc branches are never symbolic
+						}) + "\n",
+				)
+				.join(""),
+		)
 	},
 
 	fixtures: [

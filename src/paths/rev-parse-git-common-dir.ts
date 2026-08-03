@@ -2,11 +2,8 @@
 // directory — the shared store that all linked worktrees point at.  In a
 // plain (non-worktree) repository this is the same path as --git-dir.
 // Arc has no worktree concept; <arcRoot>/.arc is both the private and the
-// common dir, so this path mirrors rev-parse-git-dir: pure relative path
-// math, no arc call needed.
-
-import { posix } from "node:path"
-import { definePath, ok } from "../core"
+// common dir, so this path mirrors rev-parse-git-dir (relGitDir in core.ts).
+import { definePath, ok, relGitDir } from "../core"
 
 export default definePath({
 	name: "rev-parse-git-common-dir",
@@ -14,8 +11,7 @@ export default definePath({
 	spec: "rev-parse --git-common-dir",
 
 	async run(_args, ctx) {
-		const rel = posix.relative(ctx.cwd, ctx.arcRoot)
-		return ok(`${rel ? rel + "/" : ""}.arc\n`)
+		return ok(`${relGitDir(ctx)}\n`)
 	},
 
 	fixtures: [

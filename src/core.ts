@@ -462,3 +462,56 @@ export async function expandDiffRev(ctx: Ctx, arg: string, vsWorktree: boolean):
 export const statusLetter = (word: string): string =>
 	(({ "new file": "A", modified: "M", deleted: "D", renamed: "R", copied: "C" }) as Record<string, string>)[word] ??
 	"M"
+
+/** Forward git's -u/--untracked-files flag to arc status (which spells it
+ * `-u <mode>`): -uall / --untracked-files=all → "-u all", etc. */
+export const forwardUntracked = (args: Args, arcArgs: string[]): void => {
+	const u = [...args.flags].find((f) => f.startsWith("--untracked-files=") || f.startsWith("-u"))
+	if (u) arcArgs.push("-u", u.replace(/^(--untracked-files=|-u)/, ""))
+}
+
+/** The .arc directory path relative to the invocation cwd — the shim's
+ * answer to --git-dir/--git-common-dir/--git-path (arc has no worktrees, so
+ * private and common dir are the same). Pure path math, no arc call. */
+export const relGitDir = (ctx: Pick<Ctx, "cwd" | "arcRoot">): string => {
+	const rel = posixRelative(ctx.cwd, ctx.arcRoot)
+	return `${rel ? rel + "/" : ""}.arc`
+}
+
+/** posix.relative without importing node:path (core stays dependency-free
+ * for the compiled selftest); cwd and arcRoot are always absolute. */
+function posixRelative(from: string, to: string): string {
+	const f = from.split("/").filter(Boolean)
+	const t = to.split("/").filter(Boolean)
+	let i = 0
+	while (i < f.length && i < t.length && f[i] === t[i]) i++
+	return [...f.slice(i).map(() => ".."), ...t.slice(i)].join("/")
+}
+
+/** git --numstat rows computed from one unified diff (arc diff --git):
+ * +/- lines counted per file, binary files → "-\t-\tpath" like git. */
+export function numstatFromUnified(diff: string): { add: number | "-"; del: number | "-"; path: string }[] {
+	const out: { add: number | "-"; del: number | "-"; path: string }[] = []
+	let cur: { add: number; del: number; path: string; binary: boolean } | null = null
+	const flush = () => {
+		if (cur) out.push(cur.binary ? { add: "-", del: "-", path: cur.path } : { add: cur.add, del: cur.del, path: cur.path })
+		cur = null
+	}
+	for (const line of diff.split("\n")) {
+		// cheap prefix guard: diffs are large and header lines are rare
+		if (line.startsWith("diff --git ")) {
+			const m = line.match(/^diff --git a\/(.*) b\/(.*)$/)
+			if (m) {
+				flush()
+				cur = { add: 0, del: 0, path: m[2]!, binary: false }
+				continue
+			}
+		}
+		if (!cur) continue
+		if (line.startsWith("Binary files") || line.startsWith("GIT binary patch")) cur.binary = true
+		else if (line.startsWith("+") && !line.startsWith("+++")) cur.add++
+		else if (line.startsWith("-") && !line.startsWith("---")) cur.del++
+	}
+	flush()
+	return out
+}

@@ -1,7 +1,7 @@
 // Plain `git status` — tier 3 prose read by LLMs. arc's long status is already
 // git-shaped ("On branch …", "Untracked files:"); passthrough. The "arc add"
 // hints inside the prose are acceptable for prose tier.
-import { definePath, ok } from "../core"
+import { definePath, forwardUntracked, ok } from "../core"
 
 export default definePath({
 	name: "status-long",
@@ -10,8 +10,7 @@ export default definePath({
 
 	async run(args, ctx) {
 		const arcArgs = ["status"]
-		const u = [...args.flags].find((f) => f.startsWith("--untracked-files=") || f.startsWith("-u"))
-		if (u) arcArgs.push("-u", u.replace(/^(--untracked-files=|-u)/, ""))
+		forwardUntracked(args, arcArgs)
 		const r = await ctx.arc(arcArgs)
 		return r.code === 0 ? ok(r.stdout) : r
 	},

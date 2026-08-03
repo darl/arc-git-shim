@@ -2,10 +2,8 @@
 // the current working directory when possible.  In an arc working tree the
 // analogous directory is <arcRoot>/.arc (a symlink to the mount's store).
 // The shim only dispatches inside an arc tree, so this is pure path math —
-// no arc call needed.
-
-import { posix } from "node:path"
-import { definePath, ok } from "../core"
+// no arc call needed (relGitDir in core.ts).
+import { definePath, ok, relGitDir } from "../core"
 
 export default definePath({
 	name: "rev-parse-git-dir",
@@ -13,8 +11,7 @@ export default definePath({
 	spec: "rev-parse --git-dir",
 
 	async run(_args, ctx) {
-		const rel = posix.relative(ctx.cwd, ctx.arcRoot)
-		return ok(`${rel ? rel + "/" : ""}.arc\n`)
+		return ok(`${relGitDir(ctx)}\n`)
 	},
 
 	fixtures: [

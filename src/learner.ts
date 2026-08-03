@@ -96,13 +96,27 @@ async function specOf(file: string): Promise<string | null> {
 async function buildPrompt(): Promise<string> {
 	const { paths } = await import("./paths-index")
 	const sub = payload.argv[0]
-	const nearMiss = paths
-		.filter((p) => p.spec.split(" ")[0] === sub)
-		.map((p) => `  - ${p.name}: spec "${p.spec}"`)
-		.join("\n")
-	const example1 = readFileSync(join(SRC, "src", "paths", "branch-show-current.ts"), "utf8")
-	const example2 = readFileSync(join(SRC, "src", "paths", "rev-list-count.ts"), "utf8")
-	const grammar = readFileSync(join(SRC, "src", "core.ts"), "utf8").split("// ------")[0]
+	const family = paths.filter((p) => p.spec.split(" ")[0] === sub)
+	const nearMiss = family.map((p) => `  - ${p.name}: spec "${p.spec}"`).join("\n")
+	// Same-subcommand files double as examples: they show which shared helpers
+	// the family already imports — the antidote to pi reinventing them (the
+	// for-each-ref glob engine was copied verbatim into four sibling files
+	// before it was consolidated into src/refs.ts).
+	const pathsDir = join(SRC, "src", "paths")
+	const wanted = new Set(family.map((p) => p.name))
+	const familyExamples: string[] = []
+	for (const f of readdirSync(pathsDir)) {
+		if (familyExamples.length >= 2) break
+		const src = readFileSync(join(pathsDir, f), "utf8")
+		if ([...wanted].some((n) => src.includes(`name: "${n}"`))) familyExamples.push(`--- src/paths/${f} ---\n${src}`)
+	}
+	const example1 = readFileSync(join(pathsDir, "branch-show-current.ts"), "utf8")
+	const example2 = readFileSync(join(pathsDir, "rev-list-count.ts"), "utf8")
+	const coreSrc = readFileSync(join(SRC, "src", "core.ts"), "utf8")
+	const grammar = coreSrc.split("// ------")[0]
+	const helpers = coreSrc.slice(
+		coreSrc.indexOf("// ------------------------------------------------------- shared arc helpers"),
+	)
 
 	return `You are the learning half of arc-git: a binary that impersonates \`git\` inside Yandex Arcadia (arc VCS) working copies by translating git commands to arc commands and emulating git's output formats.
 
@@ -121,6 +135,18 @@ Write EXACTLY ONE new file in src/paths/ (kebab-case name describing the command
 
 ${grammar}
 
+## Shared helpers — REUSE these, never reimplement them inline
+
+From src/core.ts (import from "../core"):
+
+${helpers}
+
+Family engines also exist — read them before writing family-shaped logic:
+- src/refs.ts: arc branch --json listing (BranchEntry/listBranches), git ref glob matching, %(...) format rendering — the for-each-ref / branch family
+- src/gitlog.ts: git %-placeholder log rendering from arc log --json, format:/tformat: newline policy — the log family
+
+A path file that re-implements one of these is a defect even if it passes the gate.
+
 ## Existing paths for the same subcommand (your spec must not collide — a stricter/more-specific spec wins; equal specificity on the same argv is a build error)
 
 ${nearMiss || "  (none)"}
@@ -131,6 +157,7 @@ ${nearMiss || "  (none)"}
 ${example1}
 --- src/paths/rev-list-count.ts ---
 ${example2}
+${familyExamples.length ? `\n## Path files from the same subcommand family (imitate their imports and shared-helper use)\n\n${familyExamples.join("\n")}` : ""}
 
 ## Cross-cutting contracts you must respect
 

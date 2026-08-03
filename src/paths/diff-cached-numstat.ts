@@ -5,32 +5,7 @@
 // -M/-C accepted and dropped (rename detection degrades to A+D pairs in arc;
 // structure stays valid). Positionals (explicit revs) are passed through
 // without the merge-base/working-tree lens — --cached already pins the base.
-import { definePath, expandDiffRev, isExecResult, ok } from "../core"
-
-function numstatFromUnified(diff: string): { add: number | "-"; del: number | "-"; path: string }[] {
-	const out: { add: number | "-"; del: number | "-"; path: string }[] = []
-	let cur: { add: number; del: number; path: string; binary: boolean } | null = null
-	const flush = () => {
-		if (cur) out.push(cur.binary ? { add: "-", del: "-", path: cur.path } : { add: cur.add, del: cur.del, path: cur.path })
-		cur = null
-	}
-	for (const line of diff.split("\n")) {
-		if (line.startsWith("diff --git ")) {
-			const m = line.match(/^diff --git a\/(.*) b\/(.*)$/)
-			if (m) {
-				flush()
-				cur = { add: 0, del: 0, path: m[2]!, binary: false }
-				continue
-			}
-		}
-		if (!cur) continue
-		if (line.startsWith("Binary files") || line.startsWith("GIT binary patch")) cur.binary = true
-		else if (line.startsWith("+") && !line.startsWith("+++")) cur.add++
-		else if (line.startsWith("-") && !line.startsWith("---")) cur.del++
-	}
-	flush()
-	return out
-}
+import { definePath, expandDiffRev, isExecResult, numstatFromUnified, ok } from "../core"
 
 export default definePath({
 	name: "diff-cached-numstat",

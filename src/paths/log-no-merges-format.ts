@@ -5,39 +5,11 @@
 // request uses a 3× multiplier on -n then slices the filtered result back to
 // the requested limit.
 //
-// Format rendering mirrors log-format: git %X placeholders are rendered from
-// arc log --json GOLDEN fields.  Supported: %H %h %s %b %B %an %ae %aE %ad
-// %aI %n %%; anything else → refine rejects → learnable.
-//
-// format: (no trailing newline) vs tformat: (trailing newline) is respected,
-// matching git's byte-exact porcelain behaviour.
-
-import { arcJson, definePath, isExecResult, ok, SHORT_HASH_LEN } from "../core"
-
-const PLACEHOLDER = /%(H|h|s|b|B|an|ae|aE|ad|aI|n|%)/g
-
-const renderable = (fmt: string): boolean => fmt.replace(PLACEHOLDER, "").indexOf("%") === -1
-
-interface LogEntry {
-	commit: string
-	parents?: string[]
-	author: string
-	date: string
-	message: string
-}
-
-/** ISO-with-offset → git default date: "Tue Jun 30 23:53:19 2026 +0300". */
-function gitDate(iso: string): string {
-	const t = iso.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/)
-	if (!t) return iso
-	const m = iso.match(/([+-]\d{2}):?(\d{2})$/)
-	const off = m ? `${m[1]}${m[2]}` : "+0000"
-	const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-	const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-	const [, Y, Mo, D, h, mi, s] = t
-	const wall = new Date(Date.UTC(+Y!, +Mo! - 1, +D!, +h!, +mi!, +s!))
-	return `${DAYS[wall.getUTCDay()]} ${MONTHS[wall.getUTCMonth()]} ${+D!} ${h}:${mi}:${s} ${Y} ${off}`
-}
+// Rendering and format:/tformat: newline policy live in src/gitlog.ts.
+// Supported: %H %h %s %b %B %an %ae %aE %ad %aI %n %%; anything else →
+// refine rejects → learnable.
+import { arcJson, definePath, isExecResult, ok } from "../core"
+import { joinRendered, type LogEntry, renderCommit, renderable, splitPretty } from "../gitlog"
 
 /** Multiplier on -n to compensate for merge commits that will be filtered
  * out client-side (Arcadia's trunk is merge-heavy). */
@@ -47,12 +19,10 @@ export default definePath({
 	name: "log-no-merges-format",
 	summary: "log --no-merges with %-format, merge commits filtered client-side",
 	spec: "log --no-merges (--format|--pretty)=<fmt> (-n|--max-count)=<num>? <range>?",
-	refine: (args) => renderable(args.pos.fmt!.replace(/^t?format:/, "")),
+	refine: (args) => renderable(splitPretty(args.pos.fmt!).fmt),
 
 	async run(args, ctx) {
-		const raw = args.pos.fmt!
-		const trailingNl = raw.startsWith("tformat:")
-		const fmt = raw.replace(/^t?format:/, "")
+		const { fmt, terminator } = splitPretty(args.pos.fmt!)
 
 		const arcArgs = ["log", "--json"]
 		const limit = args.pos.num !== undefined ? parseInt(args.pos.num, 10) : undefined
@@ -64,31 +34,7 @@ export default definePath({
 
 		const nonMerges = entries.filter((e) => (e.parents?.length ?? 0) <= 1)
 		const sliced = limit !== undefined ? nonMerges.slice(0, limit) : nonMerges
-		if (sliced.length === 0) return ok("")
-
-		const lines = sliced.map((e) => {
-			const nl = e.message.indexOf("\n")
-			const subject = nl === -1 ? e.message : e.message.slice(0, nl)
-			const body = nl === -1 ? "" : e.message.slice(nl + 1).replace(/^\n+/, "")
-			return fmt.replace(PLACEHOLDER, (_, ph: string) => {
-				switch (ph) {
-					case "H": return e.commit
-					case "h": return e.commit.slice(0, SHORT_HASH_LEN)
-					case "s": return subject
-					case "b": return body
-					case "B": return e.message
-					case "an": return e.author
-					case "ae": case "aE": return `${e.author}@yandex-team.ru`
-					case "ad": return gitDate(e.date)
-					case "aI": return e.date
-					case "n": return "\n"
-					default: return "%"
-				}
-			})
-		})
-
-		const body = lines.join("\n")
-		return ok(trailingNl ? body + "\n" : body)
+		return ok(joinRendered(sliced.map((e) => renderCommit(fmt, e)), terminator))
 	},
 
 	fixtures: [
@@ -107,7 +53,7 @@ export default definePath({
 			want: { stdout: "subject one\nsubject two", code: 0 },
 		},
 		{
-			name: "subjects over a range, --format= syntax",
+			name: "bare --format= behaves as tformat (terminating newlines)",
 			argv: ["log", "--no-merges", "--format=%s", "trunk..HEAD"],
 			arcReplies: {
 				"log --json trunk..HEAD": {
@@ -118,7 +64,7 @@ export default definePath({
 					]),
 				},
 			},
-			want: { stdout: "fix bug\nadd feature", code: 0 },
+			want: { stdout: "fix bug\nadd feature\n", code: 0 },
 		},
 		{
 			name: "tformat adds trailing newline",

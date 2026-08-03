@@ -19,7 +19,8 @@ interface Entry {
 export default definePath({
 	name: "status-porcelain-v2",
 	summary: "porcelain v2 with branch headers (orca poll)",
-	spec: "status --porcelain=v2 --branch? --untracked-files=(all|no|normal)? (-uall|-uno)?",
+	// git accepts both --porcelain=v2 and --porcelain=2 (the "v" is optional)
+	spec: "status --porcelain=(v2|2) --branch? --untracked-files=(all|no|normal)? (-uall|-uno)?",
 
 	async run(args, ctx) {
 		const uAll = args.flags.has("--untracked-files=all") || args.flags.has("-uall")
@@ -106,6 +107,14 @@ export default definePath({
 					"# branch.head local-only\n",
 				code: 0,
 			},
+		},
+		{
+			name: "numeric --porcelain=2 alias, clean tree",
+			argv: ["status", "--porcelain=2"],
+			arcReplies: {
+				"status --json -u normal": { stdout: '{"status":{}}' },
+			},
+			want: { stdout: "", code: 0 },
 		},
 		{
 			name: "modified staged+unstaged same file",

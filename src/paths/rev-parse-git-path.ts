@@ -2,10 +2,8 @@
 // returning the result relative to cwd (e.g. ".git/HEAD" from repo root,
 // "../.git/HEAD" from a subdir).  In an arc working tree the analogous
 // directory is <arcRoot>/.arc, so the shim emits "<.arc-rel-to-cwd>/<path>".
-// Pure path math — no arc call needed.
-
-import { posix } from "node:path"
-import { definePath, ok } from "../core"
+// Pure path math — no arc call needed (relGitDir in core.ts).
+import { definePath, ok, relGitDir } from "../core"
 
 export default definePath({
 	name: "rev-parse-git-path",
@@ -13,9 +11,7 @@ export default definePath({
 	spec: "rev-parse --git-path=<path>",
 
 	async run(args, ctx) {
-		const rel = posix.relative(ctx.cwd, ctx.arcRoot)
-		const gitDir = `${rel ? rel + "/" : ""}.arc`
-		return ok(`${gitDir}/${args.pos.path!}\n`)
+		return ok(`${relGitDir(ctx)}/${args.pos.path!}\n`)
 	},
 
 	fixtures: [
