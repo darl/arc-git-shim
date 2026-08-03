@@ -1,5 +1,5 @@
 // git mv <src> <dst> → arc mv (exists as a first-class arc mode).
-import { definePath, ok } from "../core"
+import { definePath } from "../core"
 
 export default definePath({
 	name: "mv",
@@ -11,7 +11,7 @@ export default definePath({
 		if (args.flags.has("-f") || args.flags.has("--force")) arcArgs.push("--force")
 		arcArgs.push(args.pos.src!, args.pos.dst!)
 		const r = await ctx.arc(arcArgs)
-		return r.code === 0 ? ok(r.stdout) : r
+		return r
 	},
 
 	fixtures: [

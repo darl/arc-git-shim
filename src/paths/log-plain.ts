@@ -2,7 +2,7 @@
 // (arc --oneline prints full hashes where git prints short ones; prose tier.)
 // interactive: bare `git log` is UNBOUNDED (whole trunk history) — on a TTY
 // arc inherits the terminal and streams/pages itself; captured otherwise.
-import { definePath, ok } from "../core"
+import { arcRevRange, definePath } from "../core"
 
 export default definePath({
 	name: "log-plain",
@@ -14,9 +14,8 @@ export default definePath({
 		if (args.flags.has("--oneline")) arcArgs.push("--oneline")
 		if (args.flags.has("--stat")) arcArgs.push("--stat")
 		if (args.pos.num !== undefined) arcArgs.push("-n", args.pos.num)
-		if (args.pos.range !== undefined) arcArgs.push(args.pos.range)
-		const r = await ctx.arc(arcArgs, { interactive: true })
-		return r.code === 0 ? ok(r.stdout) : r
+		if (args.pos.range !== undefined) arcArgs.push(arcRevRange(args.pos.range))
+		return ctx.arc(arcArgs, { interactive: true })
 	},
 
 	fixtures: [

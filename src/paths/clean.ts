@@ -1,7 +1,7 @@
 // git clean -ffdx and friends → arc clean. arc deletes by default (no -f
 // needed); -d/-x/-n map directly. Combined-letter tokens are declared as
 // literals — the strict parser has no combined-flag splitting.
-import { definePath, fail, ok } from "../core"
+import { definePath, fail } from "../core"
 
 const has = (flags: Set<string>, letter: string): boolean =>
 	[...flags].some((f) => !f.startsWith("--") && f.slice(1).includes(letter))
@@ -22,7 +22,7 @@ export default definePath({
 		if (has(args.flags, "q") || args.flags.has("--quiet")) arcArgs.push("-q")
 		arcArgs.push(...(args.list.paths ?? []))
 		const r = await ctx.arc(arcArgs)
-		return r.code === 0 ? ok(r.stdout) : r
+		return r
 	},
 
 	fixtures: [

@@ -2,7 +2,7 @@
 // Rendering and format:/tformat: newline policy live in src/gitlog.ts.
 // Supported: %H %h %s %b %B %an %ae %ad %aI %aE %n %%; anything else →
 // refine rejects → learnable.
-import { arcJson, definePath, isExecResult, ok } from "../core"
+import { arcJson, arcRevRange, definePath, isExecResult, ok } from "../core"
 import { joinRendered, type LogEntry, renderCommit, renderable, splitPretty } from "../gitlog"
 
 export default definePath({
@@ -15,7 +15,7 @@ export default definePath({
 		const { fmt, terminator } = splitPretty(args.pos.fmt!)
 		const arcArgs = ["log", "--json"]
 		if (args.pos.num !== undefined) arcArgs.push("-n", args.pos.num)
-		if (args.pos.range !== undefined) arcArgs.push(args.pos.range)
+		if (args.pos.range !== undefined) arcArgs.push(arcRevRange(args.pos.range))
 		const entries = await arcJson<LogEntry[]>(ctx, arcArgs)
 		if (isExecResult(entries)) return entries
 		return ok(joinRendered(entries.map((e) => renderCommit(fmt, e)), terminator))

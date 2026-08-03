@@ -432,6 +432,16 @@ export function arcRev(rev: string): string {
 	return peeled
 }
 
+/** arcRev each endpoint of a possibly-ranged rev ("a..b", "a...b", or lone). */
+export const arcRevRange = (range: string): string => {
+	if (!range.includes("..") || range.startsWith(".")) return arcRev(range)
+	const sep = range.includes("...") ? "..." : ".."
+	return range
+		.split(sep)
+		.map((end) => (end === "" ? end : arcRev(end)))
+		.join(sep)
+}
+
 /** Expand one git-diff rev-ish argument into arc diff args.
  * "x...y" → merge-base(x,y) y (git three-dot); "x..y" → x y (open ends = HEAD).
  * vsWorktree (lone rev diffed against the working tree) → merge-base(rev, HEAD):
@@ -440,22 +450,26 @@ export function arcRev(rev: string): string {
  * ancestor of HEAD the merge-base IS rev — identical to git. Pathspecs fail
  * merge-base and pass through literally. */
 export async function expandDiffRev(ctx: Ctx, arg: string, vsWorktree: boolean): Promise<string[] | ExecResult> {
+	// Endpoints go through arcRev: the shim advertises origin/… and refs/…
+	// forms in its own rev-parse output, so it must resolve them here too.
+	// Pathspecs are untouched (arcRev is the identity on them).
 	const range = !arg.startsWith(".") && arg.includes("..")
 	if (range && arg.includes("...")) {
 		const [x, y] = arg.split("...")
-		const mb = await ctx.arc(["merge-base", x!, y || "HEAD"])
+		const mb = await ctx.arc(["merge-base", arcRev(x!), arcRev(y || "HEAD")])
 		if (mb.code !== 0) return mb
-		return [mb.stdout.trim(), y || "HEAD"]
+		return [mb.stdout.trim(), arcRev(y || "HEAD")]
 	}
 	if (range) {
 		const [x, y] = arg.split("..")
-		return [x!, y || "HEAD"]
+		return [arcRev(x!), arcRev(y || "HEAD")]
 	}
 	if (vsWorktree) {
-		const mb = await ctx.arc(["merge-base", arg, "HEAD"])
-		return mb.code === 0 ? [mb.stdout.trim()] : [arg]
+		const rev = arcRev(arg)
+		const mb = await ctx.arc(["merge-base", rev, "HEAD"])
+		return mb.code === 0 ? [mb.stdout.trim()] : [rev]
 	}
-	return [arg]
+	return [arcRev(arg)]
 }
 
 /** Map an arc status --json entry status word to a git XY letter. */

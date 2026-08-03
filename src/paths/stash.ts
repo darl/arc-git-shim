@@ -1,6 +1,6 @@
 // git stash [push|pop|list|apply|drop|show|clear] → arc stash has the same
 // mode names (verified against arc stash --help). Prose tier.
-import { definePath, ok } from "../core"
+import { definePath } from "../core"
 
 const MODES = new Set(["push", "pop", "list", "apply", "drop", "show", "clear"])
 
@@ -15,7 +15,7 @@ export default definePath({
 		if (args.pos.mode !== undefined) arcArgs.push(args.pos.mode)
 		if (args.pos.msg !== undefined) arcArgs.push("-m", args.pos.msg)
 		const r = await ctx.arc(arcArgs)
-		return r.code === 0 ? ok(r.stdout) : r
+		return r
 	},
 
 	fixtures: [

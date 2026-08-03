@@ -11,18 +11,12 @@
 // git's patch-id that reliably identifies identical changes).  Right-side
 // commits whose hash collides with any left-side hash get "=".
 import { createHash } from "node:crypto"
-import { arcJson, type Ctx, definePath, fail, isExecResult, ok, SHORT_HASH_LEN } from "../core"
+import { arcJson, arcRev, type Ctx, definePath, fail, isExecResult, ok, SHORT_HASH_LEN } from "../core"
 
 interface ArcLogCommit {
 	commit: string
 	parents: string[]
 	message: string
-}
-
-/** "origin/" is a silently-accepted alias for "arcadia/" (cross-cutting
- * remote contract); normalize so arc understands the ref. */
-function normalizeRef(ref: string): string {
-	return ref.replace(/^origin\//, "arcadia/")
 }
 
 /** Patch-id-like hash of a git-format diff.  Whitespace is stripped per
@@ -50,8 +44,8 @@ export default definePath({
 		const range = args.pos.range!
 		const [leftRaw, rightRaw] = range.split("...")
 		if (!leftRaw || !rightRaw) return fail(128, `fatal: bad revision '${range}'\n`)
-		const left = normalizeRef(leftRaw)
-		const right = normalizeRef(rightRaw)
+		const left = arcRev(leftRaw)
+		const right = arcRev(rightRaw)
 
 		// Right-side commits: in right but not in left  (=  git A..B)
 		const rightCommits = await arcJson<ArcLogCommit[]>(ctx, ["log", "--json", `${left}..${right}`])

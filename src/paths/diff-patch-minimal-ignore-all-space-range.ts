@@ -8,15 +8,7 @@
 // endpoints are normalized with arcRev so "origin/trunk" → "arcadia/trunk"
 // before hitting arc merge-base; expandDiffRev then does the triple-dot
 // merge-base lens or double-dot open-ends expansion.
-import { arcRev, definePath, expandDiffRev, isExecResult, ok } from "../core"
-
-const normalizeRange = (range: string): string => {
-	const sep = range.includes("...") ? "..." : ".."
-	return range
-		.split(sep)
-		.map((e) => (e === "" ? e : arcRev(e)))
-		.join(sep)
-}
+import { definePath, expandDiffRev, isExecResult } from "../core"
 
 export default definePath({
 	name: "diff-patch-minimal-ignore-all-space-range",
@@ -24,11 +16,10 @@ export default definePath({
 	spec: "diff --patch --minimal --ignore-all-space <range>",
 
 	async run(args, ctx) {
-		const range = normalizeRange(args.pos.range!)
-		const t = await expandDiffRev(ctx, range, true)
+		// expandDiffRev arcRevs the endpoints itself
+		const t = await expandDiffRev(ctx, args.pos.range!, true)
 		if (isExecResult(t)) return t
-		const r = await ctx.arc(["diff", "--git", "-w", ...t])
-		return r.code === 0 ? ok(r.stdout) : r
+		return ctx.arc(["diff", "--git", "-w", ...t])
 	},
 
 	fixtures: [

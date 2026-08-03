@@ -10,7 +10,7 @@ export default definePath({
 	async run(args, ctx) {
 		const r = await ctx.arc(["checkout", ...args.list.paths!])
 		if (r.code !== 0) return r
-		return ok(args.flags.has("-q") || args.flags.has("--quiet") ? "" : r.stdout)
+		return args.flags.has("-q") || args.flags.has("--quiet") ? ok("") : r
 	},
 
 	fixtures: [

@@ -1,7 +1,7 @@
 // git pull [--rebase|--ff-only] [arcadia [<branch>]] → arc pull [<branch>].
 // REF LENS, pull side: the branch name is LITERAL — never inject
 // users/<login>/ on pull. "origin" accepted as remote alias.
-import { definePath, fail, isRemoteAlias, ok } from "../core"
+import { definePath, isRemoteAlias } from "../core"
 
 export default definePath({
 	name: "pull",
@@ -20,14 +20,12 @@ export default definePath({
 			branch = remote
 			remote = undefined
 		}
-		if (remote !== undefined && !isRemoteAlias(remote))
-			return fail(1, `fatal: '${remote}' does not appear to be a git repository\n`)
 		const arcArgs = ["pull"]
 		if (args.flags.has("--rebase") || args.flags.has("-r")) arcArgs.push("--rebase")
 		if (args.flags.has("--ff-only")) arcArgs.push("--ff-only")
 		if (branch !== undefined) arcArgs.push(branch)
 		const r = await ctx.arc(arcArgs)
-		return r.code === 0 ? ok(r.stdout) : r
+		return r
 	},
 
 	fixtures: [

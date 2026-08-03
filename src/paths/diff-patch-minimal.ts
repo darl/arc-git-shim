@@ -5,7 +5,7 @@
 // gets the same merge-base worktree lens as diff-prose (trunk drifts, so a
 // literal `git diff trunk` would drown the caller's changes); paths after `--`
 // pass through as arc diff path filters.
-import { definePath, expandDiffRev, isExecResult, ok } from "../core"
+import { definePath, expandDiffRev, isExecResult } from "../core"
 
 export default definePath({
 	name: "diff-patch-minimal",
@@ -24,7 +24,7 @@ export default definePath({
 		}
 		for (const p of args.list.paths ?? []) arcArgs.push(p)
 		const r = await ctx.arc(arcArgs)
-		return r.code === 0 ? ok(r.stdout) : r
+		return r
 	},
 
 	fixtures: [

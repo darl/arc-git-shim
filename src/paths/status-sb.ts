@@ -4,7 +4,7 @@
 // arc status -s -b already emits git's "## branch...upstream" header + XY
 // porcelain lines with repo-root-relative paths. Run at the arc root so paths
 // stay root-relative (git porcelain paths are always root-relative).
-import { definePath, forwardUntracked, ok } from "../core"
+import { definePath, forwardUntracked } from "../core"
 
 export default definePath({
 	name: "status-sb",
@@ -15,7 +15,7 @@ export default definePath({
 		const arcArgs = ["status", "-s", "-b"]
 		forwardUntracked(args, arcArgs)
 		const r = await ctx.arc(arcArgs, { cwd: ctx.arcRoot })
-		return r.code === 0 ? ok(r.stdout) : r
+		return r
 	},
 
 	fixtures: [

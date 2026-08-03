@@ -8,7 +8,7 @@
 // Rendering and format:/tformat: newline policy live in src/gitlog.ts.
 // Supported: %H %h %s %b %B %an %ae %aE %ad %aI %n %%; anything else →
 // refine rejects → learnable.
-import { arcJson, definePath, isExecResult, ok } from "../core"
+import { arcJson, arcRevRange, definePath, isExecResult, ok } from "../core"
 import { joinRendered, type LogEntry, renderCommit, renderable, splitPretty } from "../gitlog"
 
 /** Multiplier on -n to compensate for merge commits that will be filtered
@@ -27,7 +27,7 @@ export default definePath({
 		const arcArgs = ["log", "--json"]
 		const limit = args.pos.num !== undefined ? parseInt(args.pos.num, 10) : undefined
 		if (limit !== undefined) arcArgs.push("-n", String(limit * MERGE_MULT))
-		if (args.pos.range !== undefined) arcArgs.push(args.pos.range)
+		if (args.pos.range !== undefined) arcArgs.push(arcRevRange(args.pos.range))
 
 		const entries = await arcJson<LogEntry[]>(ctx, arcArgs)
 		if (isExecResult(entries)) return entries

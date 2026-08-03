@@ -1,6 +1,7 @@
 // git reset [--hard|--soft|--mixed] [<ref>] [-- <paths...>] → arc reset
-// mirrors the mode flags and [BRANCH] [PATH]... argument order.
-import { definePath, ok } from "../core"
+// mirrors the mode flags and [BRANCH] [PATH]... argument order. The ref goes
+// through arcRev (origin/trunk and refs/... forms the shim itself advertises).
+import { arcRev, definePath } from "../core"
 
 export default definePath({
 	name: "reset",
@@ -13,10 +14,9 @@ export default definePath({
 		const arcArgs = ["reset"]
 		for (const f of ["--hard", "--soft", "--mixed"]) if (args.flags.has(f)) arcArgs.push(f)
 		if (args.flags.has("-q") || args.flags.has("--quiet")) arcArgs.push("--quiet")
-		if (args.pos.ref !== undefined) arcArgs.push(args.pos.ref)
+		if (args.pos.ref !== undefined) arcArgs.push(arcRev(args.pos.ref))
 		arcArgs.push(...(args.list.paths ?? []))
-		const r = await ctx.arc(arcArgs)
-		return r.code === 0 ? ok(r.stdout) : r
+		return ctx.arc(arcArgs)
 	},
 
 	fixtures: [
@@ -37,6 +37,12 @@ export default definePath({
 			argv: ["reset", "HEAD", "--", "a.txt"],
 			arcReplies: { "reset HEAD a.txt": {} },
 			want: { stdout: "", code: 0 },
+		},
+		{
+			name: "hard reset to origin alias resolves to arcadia",
+			argv: ["reset", "--hard", "origin/trunk"],
+			arcReplies: { "reset --hard arcadia/trunk": { stdout: "HEAD is now at c79064c\n" } },
+			want: { stdout: "HEAD is now at c79064c\n", code: 0 },
 		},
 	],
 })

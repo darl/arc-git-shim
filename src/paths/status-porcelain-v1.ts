@@ -3,7 +3,7 @@
 // with repo-root-relative paths, and -b emits "## branch...upstream" — both
 // captured from real arc. Run at the arc root so paths stay root-relative
 // (git porcelain paths are always root-relative).
-import { definePath, forwardUntracked, ok } from "../core"
+import { definePath, forwardUntracked } from "../core"
 
 export default definePath({
 	name: "status-porcelain-v1",
@@ -15,7 +15,7 @@ export default definePath({
 		if (args.flags.has("-b") || args.flags.has("--branch")) arcArgs.push("-b")
 		forwardUntracked(args, arcArgs)
 		const r = await ctx.arc(arcArgs, { cwd: ctx.arcRoot })
-		return r.code === 0 ? ok(r.stdout) : r
+		return r
 	},
 
 	fixtures: [

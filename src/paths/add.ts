@@ -1,5 +1,5 @@
 // git add — exit-code tier. arc add mirrors -A/--all and -u/--update.
-import { definePath, ok } from "../core"
+import { definePath } from "../core"
 
 export default definePath({
 	name: "add",
@@ -15,7 +15,7 @@ export default definePath({
 		if (args.flags.has("-f") || args.flags.has("--force")) arcArgs.push("--force")
 		arcArgs.push(...(args.list.paths ?? []))
 		const r = await ctx.arc(arcArgs)
-		return r.code === 0 ? ok(r.stdout) : r
+		return r
 	},
 
 	fixtures: [

@@ -3,15 +3,7 @@
 // Counts come from one-line-per-commit arc log output over the ranges.
 // Endpoints go through arcRev so origin/trunk and refs/... forms resolve
 // (t3code's base-branch probe counts origin/trunk..HEAD).
-import { arcRev, countRange, definePath, fail, isExecResult, ok } from "../core"
-
-const normalizeRange = (range: string): string => {
-	const sep = range.includes("...") ? "..." : ".."
-	return range
-		.split(sep)
-		.map((end) => (end === "" ? end : arcRev(end)))
-		.join(sep)
-}
+import { arcRevRange, countRange, definePath, fail, isExecResult, ok } from "../core"
 
 export default definePath({
 	name: "rev-list-count",
@@ -20,7 +12,7 @@ export default definePath({
 	refine: (args) => args.pos.range!.includes(".."),
 
 	async run(args, ctx) {
-		const range = normalizeRange(args.pos.range!)
+		const range = arcRevRange(args.pos.range!)
 		if (args.flags.has("--left-right")) {
 			const [a, b] = range.split("...")
 			if (!a || !b) return fail(128, `fatal: bad revision '${range}'\n`)

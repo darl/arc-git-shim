@@ -5,7 +5,7 @@
 // `arc diff --git` already emits. --minimal is a diff-algorithm knob arc has
 // no equivalent for — dropped (the output shape is identical, only the chosen
 // hunks may differ). Net mapping: `arc diff --git --cached`.
-import { definePath, ok } from "../core"
+import { definePath } from "../core"
 
 export default definePath({
 	name: "diff-no-ext-diff-cached-patch-minimal",
@@ -14,7 +14,7 @@ export default definePath({
 
 	async run(_args, ctx) {
 		const r = await ctx.arc(["diff", "--git", "--cached"])
-		return r.code === 0 ? ok(r.stdout) : r
+		return r
 	},
 
 	fixtures: [

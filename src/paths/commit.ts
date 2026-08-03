@@ -8,7 +8,8 @@ import { definePath, ok } from "../core"
 export default definePath({
 	name: "commit",
 	summary: "record changes via arc commit",
-	spec: "commit (-a|--all)? (-q|--quiet)? --amend? (--no-edit|-n)? (-m|--message|-am)=<msg...>? --no-verify?",
+	// -n is git shorthand for --no-verify (NOT --no-edit)
+	spec: "commit (-a|--all)? (-q|--quiet)? --amend? --no-edit? (-m|--message|-am)=<msg...>? (-n|--no-verify)?",
 	// message-less commit would open arc's editor — only amend may omit -m
 	refine: (args) => (args.list.msg?.length ?? 0) > 0 || args.flags.has("--amend"),
 
@@ -20,10 +21,11 @@ export default definePath({
 		if (args.flags.has("--amend")) arcArgs.push("--amend")
 		if (args.flags.has("--no-edit") && msgs.length === 0) arcArgs.push("--no-edit")
 		if (msgs.length > 0) arcArgs.push("-m", msgs.join("\n\n"))
-		if (args.flags.has("--no-verify")) arcArgs.push("--no-verify")
+		if (args.flags.has("--no-verify") || args.flags.has("-n")) arcArgs.push("--no-verify")
 		const r = await ctx.arc(arcArgs)
 		if (r.code !== 0) return r
-		return ok(args.flags.has("-q") || args.flags.has("--quiet") ? "" : r.stdout)
+		// quiet silences arc's chatter; otherwise pass stderr through too
+		return args.flags.has("-q") || args.flags.has("--quiet") ? ok("") : r
 	},
 
 	fixtures: [
@@ -58,6 +60,12 @@ export default definePath({
 			argv: ["commit", "--amend", "--no-edit"],
 			arcReplies: { "commit --amend --no-edit": { stdout: "amended\n" } },
 			want: { stdout: "amended\n", code: 0 },
+		},
+		{
+			name: "-n means --no-verify, not --no-edit",
+			argv: ["commit", "-n", "-m", "skip hooks"],
+			arcReplies: { "commit -m skip hooks --no-verify": { stdout: "done\n" } },
+			want: { stdout: "done\n", code: 0 },
 		},
 	],
 })

@@ -24,7 +24,7 @@ export default definePath({
 		if (target !== undefined) arcArgs.push(target)
 		const r = await ctx.arc(arcArgs)
 		if (r.code !== 0) return r
-		return ok(args.flags.has("-q") || args.flags.has("--quiet") ? "" : r.stdout)
+		return args.flags.has("-q") || args.flags.has("--quiet") ? ok("") : r
 	},
 
 	fixtures: [

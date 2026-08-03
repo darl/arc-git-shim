@@ -1,7 +1,7 @@
 // git branch --set-upstream-to=<upstream> [<branch>] → arc branch -u.
 // The upstream ref is used LITERALLY after stripping a leading remote name
 // (arcadia/ or origin/) — arc names upstreams without the remote prefix.
-import { definePath, ok } from "../core"
+import { definePath } from "../core"
 
 export default definePath({
 	name: "branch-set-upstream",
@@ -13,7 +13,7 @@ export default definePath({
 		const arcArgs = ["branch", "-u", up]
 		if (args.pos.branch !== undefined) arcArgs.push(args.pos.branch)
 		const r = await ctx.arc(arcArgs)
-		return r.code === 0 ? ok(r.stdout) : r
+		return r
 	},
 
 	fixtures: [

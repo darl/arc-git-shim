@@ -8,7 +8,7 @@
 // uses NUL after the status letter too: "M\0path\0").
 // Positionals (explicit revs) are passed through without the merge-base /
 // working-tree lens — --cached already pins the base, same as diff-cached-numstat.
-import { definePath, expandDiffRev, isExecResult, ok } from "../core"
+import { arcRev, definePath, expandDiffRev, isExecResult, ok } from "../core"
 
 export default definePath({
 	name: "diff-cached-name-status",
@@ -22,10 +22,10 @@ export default definePath({
 			if (isExecResult(t)) return t
 			arcArgs.push(...t)
 		}
-		if (args.pos.b !== undefined) arcArgs.push(args.pos.b)
+		if (args.pos.b !== undefined) arcArgs.push(arcRev(args.pos.b))
 		const r = await ctx.arc(arcArgs, { cwd: ctx.arcRoot })
 		if (r.code !== 0) return r
-		if (!args.flags.has("-z")) return ok(r.stdout)
+		if (!args.flags.has("-z")) return r
 		const recs = r.stdout
 			.split("\n")
 			.filter(Boolean)

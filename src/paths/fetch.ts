@@ -9,7 +9,7 @@
 // new worktrees to it — the passthrough left worktrees on days-old trunk),
 // so trunk is fetched explicitly; the current branch keeps arc's bare-fetch
 // refresh, best-effort (a local-only branch has no remote to fetch).
-import { arcInfo, definePath, fail, isDetached, isExecResult, isRemoteAlias, ok } from "../core"
+import { arcInfo, definePath, fail, isDetached, isExecResult, isRemoteAlias } from "../core"
 
 export default definePath({
 	name: "fetch",
@@ -38,10 +38,10 @@ export default definePath({
 			const t = await ctx.arc(["fetch", "trunk"])
 			if (t.code !== 0) return t
 			if (info.branch !== "trunk" && !isDetached(info.branch)) await ctx.arc(["fetch"])
-			return ok(t.stdout)
+			return t
 		}
 		const r = await ctx.arc(["fetch", branch])
-		return r.code === 0 ? ok(r.stdout) : r
+		return r
 	},
 
 	fixtures: [

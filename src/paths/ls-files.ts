@@ -11,7 +11,7 @@ export default definePath({
 	async run(args, ctx) {
 		const r = await ctx.arc(["ls-files", ...(args.list.paths ?? [])])
 		if (r.code !== 0) return r
-		if (!args.flags.has("-z")) return ok(r.stdout)
+		if (!args.flags.has("-z")) return r
 		const files = r.stdout.split("\n").filter(Boolean)
 		return ok(files.length ? files.join("\0") + "\0" : "")
 	},

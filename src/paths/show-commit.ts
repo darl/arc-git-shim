@@ -1,6 +1,6 @@
 // git show [--stat] [<rev>] — commit prose, tier 3, arc show passthrough
 // (--git for git-shaped patch text).
-import { definePath, ok } from "../core"
+import { arcRev, definePath } from "../core"
 
 export default definePath({
 	name: "show-commit",
@@ -11,9 +11,8 @@ export default definePath({
 	async run(args, ctx) {
 		const arcArgs = ["show", "--git"]
 		if (args.flags.has("--stat")) arcArgs.push("--stat")
-		if (args.pos.rev !== undefined) arcArgs.push(args.pos.rev)
-		const r = await ctx.arc(arcArgs)
-		return r.code === 0 ? ok(r.stdout) : r
+		if (args.pos.rev !== undefined) arcArgs.push(arcRev(args.pos.rev))
+		return ctx.arc(arcArgs)
 	},
 
 	fixtures: [

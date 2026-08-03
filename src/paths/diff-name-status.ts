@@ -7,7 +7,7 @@
 // A lone rev diffs the working tree from merge-base(rev, HEAD) — see
 // expandDiffRev (acceptance finding: literal `diff trunk` drowns in fresh
 // trunk commits); two explicit revs stay literal.
-import { definePath, expandDiffRev, isExecResult, ok } from "../core"
+import { arcRev, definePath, expandDiffRev, isExecResult, ok } from "../core"
 
 export default definePath({
 	name: "diff-name-status",
@@ -21,10 +21,10 @@ export default definePath({
 			if (isExecResult(t)) return t
 			arcArgs.push(...t)
 		}
-		if (args.pos.b !== undefined) arcArgs.push(args.pos.b)
+		if (args.pos.b !== undefined) arcArgs.push(arcRev(args.pos.b))
 		const r = await ctx.arc(arcArgs, { cwd: ctx.arcRoot })
 		if (r.code !== 0) return r
-		if (!args.flags.has("-z")) return ok(r.stdout)
+		if (!args.flags.has("-z")) return r
 		const recs = r.stdout
 			.split("\n")
 			.filter(Boolean)

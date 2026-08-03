@@ -5,7 +5,7 @@
 // pathspecs fail the merge-base probe and pass through literally. An arg
 // containing ".." is treated as a range unless it starts with "." (heuristic —
 // pathspecs with ".." inside are vanishingly rare from agents; v1 tradeoff).
-import { definePath, expandDiffRev, isExecResult, ok } from "../core"
+import { definePath, expandDiffRev, isExecResult } from "../core"
 
 export default definePath({
 	name: "diff-prose",
@@ -27,7 +27,7 @@ export default definePath({
 			vsWorktree = false
 		}
 		const r = await ctx.arc(arcArgs)
-		return r.code === 0 ? ok(r.stdout) : r
+		return r
 	},
 
 	fixtures: [
