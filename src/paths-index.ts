@@ -32,6 +32,7 @@ import p_diff_numstat from "./paths/diff-numstat"
 import p_diff_patch_minimal_ignore_all_space_range from "./paths/diff-patch-minimal-ignore-all-space-range"
 import p_diff_patch_minimal_ignore_all_space from "./paths/diff-patch-minimal-ignore-all-space"
 import p_diff_patch_minimal from "./paths/diff-patch-minimal"
+import p_diff_patch_no_color_minimal_ignore_all_space from "./paths/diff-patch-no-color-minimal-ignore-all-space"
 import p_diff_prose from "./paths/diff-prose"
 import p_fetch from "./paths/fetch"
 import p_for_each_ref_committerdate from "./paths/for-each-ref-committerdate"
@@ -136,6 +137,7 @@ export const paths: Path[] = [
 	p_diff_patch_minimal_ignore_all_space_range,
 	p_diff_patch_minimal_ignore_all_space,
 	p_diff_patch_minimal,
+	p_diff_patch_no_color_minimal_ignore_all_space,
 	p_diff_prose,
 	p_fetch,
 	p_for_each_ref_committerdate,
