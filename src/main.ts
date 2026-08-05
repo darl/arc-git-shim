@@ -202,6 +202,12 @@ async function main(): Promise<void> {
 	// untracked files against /dev/null this way)
 	if (cmd[0] === "diff" && cmd.includes("--no-index")) await execRealGit(argv)
 
+	// clone creates a NEW repository from an external source — it never reads
+	// the enclosing tree, so real git handles it even inside an arc mount.
+	// Inherited stdio keeps live progress and auth prompts working, which a
+	// dispatch path (captured output) could not provide.
+	if (cmd[0] === "clone") await execRealGit(argv)
+
 	const tree = detectTree(effCwd)
 	if (!tree || tree.kind === "git") await execRealGit(argv)
 

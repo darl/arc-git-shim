@@ -85,7 +85,6 @@ import p_status_sb from "./paths/status-sb"
 import p_switch from "./paths/switch"
 import p_symbolic_ref_head from "./paths/symbolic-ref-head"
 import p_symbolic_ref_remote_head from "./paths/symbolic-ref-remote-head"
-import p_unsupported_clone from "./paths/unsupported-clone"
 import p_unsupported_commit_tree from "./paths/unsupported-commit-tree"
 import p_unsupported_read_tree from "./paths/unsupported-read-tree"
 import p_unsupported_remote_mutate from "./paths/unsupported-remote-mutate"
@@ -186,7 +185,6 @@ export const paths: Path[] = [
 	p_switch,
 	p_symbolic_ref_head,
 	p_symbolic_ref_remote_head,
-	p_unsupported_clone,
 	p_unsupported_commit_tree,
 	p_unsupported_read_tree,
 	p_unsupported_remote_mutate,
