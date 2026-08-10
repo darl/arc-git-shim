@@ -36,6 +36,7 @@ import p_diff_patch_no_color_minimal_ignore_all_space from "./paths/diff-patch-n
 import p_diff_prose from "./paths/diff-prose"
 import p_fetch from "./paths/fetch"
 import p_for_each_ref_committerdate from "./paths/for-each-ref-committerdate"
+import p_for_each_ref_count from "./paths/for-each-ref-count"
 import p_for_each_ref_multi_pattern from "./paths/for-each-ref-multi-pattern"
 import p_for_each_ref_remotes from "./paths/for-each-ref-remotes"
 import p_for_each_ref_sorted from "./paths/for-each-ref-sorted"
@@ -141,6 +142,7 @@ export const paths: Path[] = [
 	p_diff_prose,
 	p_fetch,
 	p_for_each_ref_committerdate,
+	p_for_each_ref_count,
 	p_for_each_ref_multi_pattern,
 	p_for_each_ref_remotes,
 	p_for_each_ref_sorted,
