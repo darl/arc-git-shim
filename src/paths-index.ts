@@ -78,6 +78,7 @@ import p_rev_parse_show_toplevel from "./paths/rev-parse-show-toplevel"
 import p_rev_parse_toplevel_common_dir from "./paths/rev-parse-toplevel-common-dir"
 import p_rev_parse_toplevel_git_dir_abbrev_ref from "./paths/rev-parse-toplevel-git-dir-abbrev-ref"
 import p_rev_parse_verify from "./paths/rev-parse-verify"
+import p_shortlog_sn_since from "./paths/shortlog-sn-since"
 import p_show_blob from "./paths/show-blob"
 import p_show_commit from "./paths/show-commit"
 import p_show_format_quiet from "./paths/show-format-quiet"
@@ -185,6 +186,7 @@ export const paths: Path[] = [
 	p_rev_parse_toplevel_common_dir,
 	p_rev_parse_toplevel_git_dir_abbrev_ref,
 	p_rev_parse_verify,
+	p_shortlog_sn_since,
 	p_show_blob,
 	p_show_commit,
 	p_show_format_quiet,
