@@ -1,6 +1,6 @@
 // Production Ctx: real arc subprocess + persistent shim-local config store.
 import { createHash } from "node:crypto"
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, statSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { configKey } from "./core"
@@ -84,11 +84,24 @@ export function persistCtx(ctx: Ctx, configSnapshot: string): void {
  * The arc marker requires .arc/HEAD: a working copy's .arc symlinks into a
  * git-dir-shaped store, while ~/.arc — arc's CONFIG home, present in $HOME on
  * every arc machine — has no HEAD (acceptance finding: a `git clone` under
- * $HOME was mistaken for an in-arc-tree call and refused). */
+ * $HOME was mistaken for an in-arc-tree call and refused).
+ * The git marker requires the same discipline: a .git DIRECTORY counts only
+ * when it holds HEAD. An empty or half-made .git (seen live: a stray
+ * `mkdir .git` inside a t3 arc worktree) is invisible to real git's own
+ * discovery, and claiming kind "git" for it execs real git into a "not a
+ * git repository" fatal while the surrounding arc tree goes unserved. A
+ * .git FILE always counts — that is a worktree/submodule gitdir pointer. */
 export function detectTree(dir: string): { kind: "git" | "arc"; root: string } | null {
 	let d = dir
 	for (;;) {
-		if (existsSync(join(d, ".git"))) return { kind: "git", root: d }
+		const dotGit = join(d, ".git")
+		if (existsSync(dotGit)) {
+			let isFile = false
+			try {
+				isFile = statSync(dotGit).isFile()
+			} catch {}
+			if (isFile || existsSync(join(dotGit, "HEAD"))) return { kind: "git", root: d }
+		}
 		if (existsSync(join(d, ".arc", "HEAD"))) return { kind: "arc", root: d }
 		const parent = dirname(d)
 		if (parent === d) return null
