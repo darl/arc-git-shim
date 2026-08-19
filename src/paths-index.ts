@@ -62,6 +62,7 @@ import p_rev_list_count from "./paths/rev-list-count"
 import p_rev_parse_abbrev_ref_symbolic_full_name from "./paths/rev-parse-abbrev-ref-symbolic-full-name"
 import p_rev_parse_abbrev_ref from "./paths/rev-parse-abbrev-ref"
 import p_rev_parse_git_common_dir from "./paths/rev-parse-git-common-dir"
+import p_rev_parse_git_dir_git_paths_symbolic_full_name from "./paths/rev-parse-git-dir-git-paths-symbolic-full-name"
 import p_rev_parse_git_dir_git_paths from "./paths/rev-parse-git-dir-git-paths"
 import p_rev_parse_git_dir from "./paths/rev-parse-git-dir"
 import p_rev_parse_git_path from "./paths/rev-parse-git-path"
@@ -163,6 +164,7 @@ export const paths: Path[] = [
 	p_rev_parse_abbrev_ref_symbolic_full_name,
 	p_rev_parse_abbrev_ref,
 	p_rev_parse_git_common_dir,
+	p_rev_parse_git_dir_git_paths_symbolic_full_name,
 	p_rev_parse_git_dir_git_paths,
 	p_rev_parse_git_dir,
 	p_rev_parse_git_path,
