@@ -60,6 +60,22 @@ export async function runArc(
 	return { stdout, stderr, code }
 }
 
+/** Non-arc subprocess (e.g. fusermount). A missing binary answers code 127
+ * like a shell would — paths probe-and-degrade instead of catching throws. */
+export async function runExec(argv: string[], cwd: string): Promise<ExecResult> {
+	try {
+		const proc = Bun.spawn(argv, { cwd, stdout: "pipe", stderr: "pipe", stdin: "ignore" })
+		const [stdout, stderr, code] = await Promise.all([
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+			proc.exited,
+		])
+		return { stdout, stderr, code }
+	} catch (e) {
+		return { stdout: "", stderr: `${argv[0]}: ${e instanceof Error ? e.message : e}\n`, code: 127 }
+	}
+}
+
 export function makeCtx(cwd: string, arcRoot: string, noPager = false): { ctx: Ctx; configSnapshot: string } {
 	const config = loadConfigStore(arcRoot)
 	const configSnapshot = JSON.stringify([...config.entries()].sort())
@@ -68,6 +84,7 @@ export function makeCtx(cwd: string, arcRoot: string, noPager = false): { ctx: C
 		arcRoot,
 		config,
 		arc: (args: string[], opts?: ArcOpts) => runArc(args, opts?.cwd ?? cwd, { interactive: opts?.interactive, noPager }),
+		exec: (argv: string[]) => runExec(argv, cwd),
 		pathExists: existsSync,
 	}
 	return { ctx, configSnapshot }

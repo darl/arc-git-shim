@@ -50,6 +50,10 @@ export interface Ctx {
 	arcRoot: string
 	/** Injected arc executor — real subprocess in prod, canned in tests. */
 	arc(args: string[], opts?: ArcOpts): Promise<ExecResult>
+	/** Injected non-arc executor (e.g. fusermount) — real subprocess in prod,
+	 * canned via Fixture.execReplies in tests. A missing binary answers code
+	 * 127 instead of throwing, so paths can probe-and-degrade by platform. */
+	exec(argv: string[]): Promise<ExecResult>
 	/** Filesystem existence probe — injected so paths stay hermetic (real fs
 	 * in prod, Fixture.existingPaths in tests); never reach for node:fs. */
 	pathExists(p: string): boolean
@@ -73,6 +77,10 @@ export interface Fixture {
 	argv: string[]
 	/** Canned arc replies, keyed by arc argv joined with " ". */
 	arcReplies: Record<string, Partial<ExecResult>>
+	/** Canned non-arc exec replies, keyed by argv joined with " ".
+	 * An unscripted exec call answers code 250 — a fixture that must NOT
+	 * reach exec (e.g. a non-busy failure) just leaves this out. */
+	execReplies?: Record<string, Partial<ExecResult>>
 	want: { stdout?: string; stderr?: string; code: number }
 	/** Override the fixture Ctx cwd (default: the canned arc root). */
 	cwd?: string

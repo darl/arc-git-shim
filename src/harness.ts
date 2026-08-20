@@ -29,6 +29,13 @@ export function cannedCtx(fx: Fixture, calls: string[]): Ctx {
 			if (!r) return { stdout: "", stderr: `canned-arc: no reply scripted for: arc ${key}\n`, code: 250 }
 			return { stdout: r.stdout ?? "", stderr: r.stderr ?? "", code: r.code ?? 0 }
 		},
+		async exec(argv) {
+			const key = argv.join(" ")
+			calls.push(key)
+			const r = fx.execReplies?.[key]
+			if (!r) return { stdout: "", stderr: `canned-exec: no reply scripted for: ${key}\n`, code: 250 }
+			return { stdout: r.stdout ?? "", stderr: r.stderr ?? "", code: r.code ?? 0 }
+		},
 	}
 }
 
