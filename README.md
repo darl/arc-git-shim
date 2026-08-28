@@ -136,8 +136,6 @@ bun run build         # all of the above + compile to dist/git
 bun run install-shim  # full gate, then atomic install to ~/.arc-git/bin/git
 ```
 
-Work is organized in `tracker/` (wayfinder map + tickets).
-
 ## Uninstall
 
 Remove `~/.arc-git/bin` from PATH, delete `~/.arc-git/`, delete the fish completion symlink. Nothing else is touched.
