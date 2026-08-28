@@ -103,6 +103,7 @@ import p_unsupported_remote_mutate from "./paths/unsupported-remote-mutate"
 import p_unsupported_submodule from "./paths/unsupported-submodule"
 import p_unsupported_update_ref from "./paths/unsupported-update-ref"
 import p_unsupported_write_tree from "./paths/unsupported-write-tree"
+import p_worktree_add_help from "./paths/worktree-add-help"
 import p_worktree_add from "./paths/worktree-add"
 import p_worktree_flag_list from "./paths/worktree-flag-list"
 import p_worktree_list from "./paths/worktree-list"
@@ -215,6 +216,7 @@ export const paths: Path[] = [
 	p_unsupported_submodule,
 	p_unsupported_update_ref,
 	p_unsupported_write_tree,
+	p_worktree_add_help,
 	p_worktree_add,
 	p_worktree_flag_list,
 	p_worktree_list,
