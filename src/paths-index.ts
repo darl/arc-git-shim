@@ -36,6 +36,7 @@ import p_diff_patch_minimal from "./paths/diff-patch-minimal"
 import p_diff_patch_no_color_minimal_ignore_all_space_range from "./paths/diff-patch-no-color-minimal-ignore-all-space-range"
 import p_diff_patch_no_color_minimal_ignore_all_space from "./paths/diff-patch-no-color-minimal-ignore-all-space"
 import p_diff_prose from "./paths/diff-prose"
+import p_diff_raw_numstat from "./paths/diff-raw-numstat"
 import p_diff_rev_numstat_separator from "./paths/diff-rev-numstat-separator"
 import p_fetch from "./paths/fetch"
 import p_for_each_ref_committerdate from "./paths/for-each-ref-committerdate"
@@ -45,6 +46,7 @@ import p_for_each_ref_remotes from "./paths/for-each-ref-remotes"
 import p_for_each_ref_sorted from "./paths/for-each-ref-sorted"
 import p_for_each_ref_upstream_remotename from "./paths/for-each-ref-upstream-remotename"
 import p_for_each_ref from "./paths/for-each-ref"
+import p_hash_object_stdin_paths from "./paths/hash-object-stdin-paths"
 import p_log_cherry_mark_right_only from "./paths/log-cherry-mark-right-only"
 import p_log_format from "./paths/log-format"
 import p_log_no_merges_format from "./paths/log-no-merges-format"
@@ -146,6 +148,7 @@ export const paths: Path[] = [
 	p_diff_patch_no_color_minimal_ignore_all_space_range,
 	p_diff_patch_no_color_minimal_ignore_all_space,
 	p_diff_prose,
+	p_diff_raw_numstat,
 	p_diff_rev_numstat_separator,
 	p_fetch,
 	p_for_each_ref_committerdate,
@@ -155,6 +158,7 @@ export const paths: Path[] = [
 	p_for_each_ref_sorted,
 	p_for_each_ref_upstream_remotename,
 	p_for_each_ref,
+	p_hash_object_stdin_paths,
 	p_log_cherry_mark_right_only,
 	p_log_format,
 	p_log_no_merges_format,
