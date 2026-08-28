@@ -208,7 +208,7 @@ async function main(): Promise<void> {
 	try {
 		configModel = JSON.parse(readFileSync(join(SHIM_HOME, "config.json"), "utf8")).defaultModel
 	} catch {}
-	const [prov, id] = (payload.model ?? configModel ?? "darl-glm/glm-5.2").split("/") as [string, string]
+	const [prov, id] = (payload.model ?? configModel ?? "darl-glm/glm-5.3-flash").split("/") as [string, string]
 	const model = modelRegistry.find(prov, id)
 	if (!model) dieLearning(`learning failed: model ${prov}/${id} not available`)
 
