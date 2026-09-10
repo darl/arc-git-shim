@@ -2,6 +2,8 @@
 // lifecycle (orca crutch, ticket "Decide the orca compatibility bar"):
 //   1. arc mount <path>            (FUSE mount; seconds–tens of seconds)
 //   2. arc checkout -b <br> [<base>]   — run INSIDE the mount
+//   2b. if checkout fails: arc unmount --force + --forget, so nothing is left
+//       behind (git worktree add is atomic) and the arc error is reported.
 // The branch is created EXACTLY as asked — no users/<login>/ lens here. Tools
 // remember the name they passed to -b (t3code stores it and compares against
 // status branch.head verbatim); the users/ prefix is a REMOTE-side concept
@@ -40,14 +42,22 @@ export default definePath({
 		// orca qualifies the base it probed (refs/remotes/arcadia/trunk) before
 		// handing it to worktree add; arc only knows the short form
 		const base = args.pos.base !== undefined ? arcRev(args.pos.base) : undefined
-		if (args.pos.branch !== undefined) {
-			const co = ["checkout", "-b", args.pos.branch]
-			if (base !== undefined) co.push(base)
+		const co =
+			args.pos.branch !== undefined
+				? ["checkout", "-b", args.pos.branch, ...(base !== undefined ? [base] : [])]
+				: base !== undefined
+					? ["checkout", base]
+					: null
+		if (co !== null) {
 			const c = await ctx.arc(co, { cwd: mountPath })
-			if (c.code !== 0) return c
-		} else if (base !== undefined) {
-			const c = await ctx.arc(["checkout", base], { cwd: mountPath })
-			if (c.code !== 0) return c
+			if (c.code !== 0) {
+				// git worktree add is atomic: a failed checkout leaves no worktree
+				// behind. Drop the fresh mount (and its store record) so a retry
+				// does not hit "already mounted" and no orphan mount lingers.
+				await ctx.arc(["unmount", "--force", mountPath], { cwd: "/" })
+				await ctx.arc(["unmount", "--forget", mountPath], { cwd: "/" })
+				return { ...c, stderr: `fatal: arc ${co.join(" ")} failed in '${mountPath}':\n${c.stderr}` }
+			}
 		}
 		return ok(`Preparing worktree (new branch '${args.pos.branch ?? args.pos.base ?? "trunk"}')\n`)
 	},
@@ -89,6 +99,21 @@ export default definePath({
 				"checkout -b perf-task arcadia/trunk": {},
 			},
 			want: { stdout: "Preparing worktree (new branch 'perf-task')\n", code: 0 },
+		},
+		{
+			name: "checkout failure unmounts the fresh mount and reports the arc error",
+			argv: ["worktree", "add", "--no-track", "-b", "t3code/abc", "/wt/t3code-abc", "0123abcd"],
+			arcReplies: {
+				"mount /wt/t3code-abc": {},
+				"checkout -b t3code/abc 0123abcd": { stderr: "Error: unknown revision '0123abcd'\n", code: 1 },
+				"unmount --force /wt/t3code-abc": {},
+				"unmount --forget /wt/t3code-abc": {},
+			},
+			want: {
+				stderr:
+					"fatal: arc checkout -b t3code/abc 0123abcd failed in '/wt/t3code-abc':\nError: unknown revision '0123abcd'\n",
+				code: 1,
+			},
 		},
 		{
 			name: "mount failure propagates",
