@@ -94,6 +94,7 @@ import p_show_format_quiet from "./paths/show-format-quiet"
 import p_show_ref_verify from "./paths/show-ref-verify"
 import p_stash from "./paths/stash"
 import p_status_long from "./paths/status-long"
+import p_status_porcelain_v1_z_ignored_pathspec from "./paths/status-porcelain-v1-z-ignored-pathspec"
 import p_status_porcelain_v1_z from "./paths/status-porcelain-v1-z"
 import p_status_porcelain_v1 from "./paths/status-porcelain-v1"
 import p_status_porcelain_v2_z from "./paths/status-porcelain-v2-z"
@@ -212,6 +213,7 @@ export const paths: Path[] = [
 	p_show_ref_verify,
 	p_stash,
 	p_status_long,
+	p_status_porcelain_v1_z_ignored_pathspec,
 	p_status_porcelain_v1_z,
 	p_status_porcelain_v1,
 	p_status_porcelain_v2_z,
