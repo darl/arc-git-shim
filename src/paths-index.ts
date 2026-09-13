@@ -49,6 +49,7 @@ import p_for_each_ref_multi_pattern from "./paths/for-each-ref-multi-pattern"
 import p_for_each_ref_remotes from "./paths/for-each-ref-remotes"
 import p_for_each_ref_sorted from "./paths/for-each-ref-sorted"
 import p_for_each_ref_upstream_remotename from "./paths/for-each-ref-upstream-remotename"
+import p_for_each_ref_upstream_track from "./paths/for-each-ref-upstream-track"
 import p_for_each_ref from "./paths/for-each-ref"
 import p_hash_object_stdin_paths from "./paths/hash-object-stdin-paths"
 import p_log_cherry_mark_right_only from "./paths/log-cherry-mark-right-only"
@@ -168,6 +169,7 @@ export const paths: Path[] = [
 	p_for_each_ref_remotes,
 	p_for_each_ref_sorted,
 	p_for_each_ref_upstream_remotename,
+	p_for_each_ref_upstream_track,
 	p_for_each_ref,
 	p_hash_object_stdin_paths,
 	p_log_cherry_mark_right_only,
