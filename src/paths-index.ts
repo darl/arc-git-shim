@@ -48,6 +48,7 @@ import p_for_each_ref_committerdate from "./paths/for-each-ref-committerdate"
 import p_for_each_ref_count from "./paths/for-each-ref-count"
 import p_for_each_ref_multi_pattern from "./paths/for-each-ref-multi-pattern"
 import p_for_each_ref_remotes from "./paths/for-each-ref-remotes"
+import p_for_each_ref_sort_objectname from "./paths/for-each-ref-sort-objectname"
 import p_for_each_ref_sorted from "./paths/for-each-ref-sorted"
 import p_for_each_ref_upstream_remotename from "./paths/for-each-ref-upstream-remotename"
 import p_for_each_ref_upstream_track from "./paths/for-each-ref-upstream-track"
@@ -170,6 +171,7 @@ export const paths: Path[] = [
 	p_for_each_ref_count,
 	p_for_each_ref_multi_pattern,
 	p_for_each_ref_remotes,
+	p_for_each_ref_sort_objectname,
 	p_for_each_ref_sorted,
 	p_for_each_ref_upstream_remotename,
 	p_for_each_ref_upstream_track,
