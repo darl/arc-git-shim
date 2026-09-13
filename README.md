@@ -98,7 +98,7 @@ bash/zsh completion in arc trees is an unexamined gap: their git completions als
 | `git arc-shim rollback` | restore the previous binary (`git.prev`) |
 | `git arc-shim learn [--model p/m] -- <args>` | hand-run a learn episode (review mode, no auto-commit) |
 
-State lives in `~/.arc-git/`: the binary (`bin/`), per-root config store (`store/`), learn logs (`logs/`), negative cache (`state.json`), source pointer (`config.json`). First unknown command in an arc tree = a synchronous learn episode (≤5 repairs, ≤8 min, phase lines on stderr); green episodes auto-commit `learn: <spec>` to the source repo recorded in `config.json`.
+State lives in `~/.arc-git/`: the binary (`bin/`), per-root config store (`store/`), learn logs (`logs/`), negative cache (`state.json`), source pointer (`config.json`). Episodes append to `logs/learn.log` — model thinking, prose, tool calls and results, gate output — so `tail -F ~/.arc-git/logs/learn.log` shows a learn as it happens; the first episode of a new day rotates the file to `logs/learn-<date>.log` and keeps the last 14 days. First unknown command in an arc tree = a synchronous learn episode (≤5 repairs, ≤8 min, phase lines on stderr); green episodes auto-commit `learn: <spec>` to the source repo recorded in `config.json`.
 
 ## Orca
 

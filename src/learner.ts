@@ -7,12 +7,14 @@
 // design ticket): pi writes exactly ONE new path file; gate = gen →
 // typecheck → bun test → compile → compiled selftest; ≤5 repair iterations,
 // ≤8 min wall; green → atomic swap (+ auto-commit in live mode, message
-// `learn: <spec>`); the whole episode is logged to ~/.arc-git/logs/.
+// `learn: <spec>`); every episode is appended to ~/.arc-git/logs/learn.log,
+// which is rotated to learn-<date>.log on the first episode of a new day —
+// one stable path so `tail -F` shows a running episode live.
 //
 // This process runs with ARC_GIT=off (set below) so every `git` its
 // subprocesses touch — including pi's bash tool and the auto-commit — hits
 // real git, never the shim.
-import { appendFileSync, mkdirSync, readdirSync, readFileSync } from "node:fs"
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { gateSteps, installBinary } from "./build"
 import { SHIM_HOME } from "./ctx"
@@ -53,15 +55,59 @@ setTimeout(() => {
 	dieLearning("learning failed: hard wall-clock limit")
 }, MAX_WALL_MS * 1.25)
 
-mkdirSync(join(SHIM_HOME, "logs"), { recursive: true })
-const logFile = join(SHIM_HOME, "logs", `learn-${new Date().toISOString().replace(/[:.]/g, "-")}.log`)
+// One append-only file so a watcher can `tail -F ~/.arc-git/logs/learn.log`
+// and see an episode as it runs; days are split off into learn-<date>.log by
+// the first episode of the next day. Episodes are delimited by the banner
+// written below, so a rotated day still reads as a sequence of episodes.
+const LOG_DIR = join(SHIM_HOME, "logs")
+const KEEP_DAYS = 14
+const dayOf = (t: number | Date) => new Date(t).toISOString().slice(0, 10)
+
+mkdirSync(LOG_DIR, { recursive: true })
+const logFile = join(LOG_DIR, "learn.log")
+rotateLog()
+
+/** Move yesterday's learn.log aside and drop rotations older than KEEP_DAYS.
+ * Best effort: a failed rotation must never stop an episode, it only means
+ * the day boundary lands inside one file. */
+function rotateLog(): void {
+	try {
+		const written = dayOf(statSync(logFile).mtimeMs)
+		if (written !== dayOf(Date.now())) {
+			const target = join(LOG_DIR, `learn-${written}.log`)
+			// same-day target can exist only if the clock moved back; append
+			// rather than lose either half
+			if (existsSync(target)) {
+				appendFileSync(target, readFileSync(logFile))
+				rmSync(logFile)
+			} else renameSync(logFile, target)
+		}
+	} catch {} // no learn.log yet — nothing to rotate
+	try {
+		const rotated = readdirSync(LOG_DIR)
+			.filter((f) => /^learn-\d{4}-\d{2}-\d{2}\.log$/.test(f))
+			.sort()
+		for (const f of rotated.slice(0, Math.max(0, rotated.length - KEEP_DAYS))) rmSync(join(LOG_DIR, f))
+	} catch {}
+}
+
 const log = (s: string) => appendFileSync(logFile, s.endsWith("\n") ? s : s + "\n")
+const stamp = () => new Date().toISOString().slice(11, 19)
 const phase = (s: string) => {
 	try {
 		process.stderr.write(`arc-git: ${s}\n`)
 	} catch {} // stderr pipe may be gone with the shim — log() is the record
-	log(`== ${s}`)
+	log(`== ${stamp()} ${s}`)
 }
+
+// Episode banner: the shared file only reads as a log if every episode says
+// where it starts, which process wrote it, and what triggered it.
+log(
+	`\n==== ${new Date().toISOString()} episode start (pid ${process.pid}, ${hand ? "hand" : "live"} mode)\n` +
+		`==== git ${payload.argv.join(" ")}\n` +
+		`==== cwd ${payload.callCwd}`,
+)
+process.on("exit", (code) => log(`==== ${stamp()} episode end (exit ${code})`))
 
 const run = async (cmd: string[], cwd = SRC): Promise<{ code: number; out: string }> => {
 	const p = Bun.spawn(cmd, { cwd, stdout: "pipe", stderr: "pipe", stdin: "ignore", env: process.env as Record<string, string> })
@@ -196,7 +242,7 @@ const publicArgv = (argv: string[]): string => {
 }
 
 async function main(): Promise<void> {
-	phase(`unknown command 'git ${payload.argv.join(" ")}', learning… (log: ${logFile})`)
+	phase(`unknown command 'git ${payload.argv.join(" ")}', learning… (follow: tail -F ${logFile})`)
 	const before = listPaths()
 
 	const { AuthStorage, ModelRegistry, DefaultResourceLoader, SessionManager, createAgentSession, getAgentDir } =
