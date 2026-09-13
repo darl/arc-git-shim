@@ -76,6 +76,7 @@ import p_reset from "./paths/reset"
 import p_restore_staged from "./paths/restore-staged"
 import p_restore_worktree from "./paths/restore-worktree"
 import p_rev_list_count from "./paths/rev-list-count"
+import p_rev_parse_abbrev_ref_symbolic_full_name_refs_dashdash from "./paths/rev-parse-abbrev-ref-symbolic-full-name-refs-dashdash"
 import p_rev_parse_abbrev_ref_symbolic_full_name from "./paths/rev-parse-abbrev-ref-symbolic-full-name"
 import p_rev_parse_abbrev_ref from "./paths/rev-parse-abbrev-ref"
 import p_rev_parse_git_common_dir from "./paths/rev-parse-git-common-dir"
@@ -202,6 +203,7 @@ export const paths: Path[] = [
 	p_restore_staged,
 	p_restore_worktree,
 	p_rev_list_count,
+	p_rev_parse_abbrev_ref_symbolic_full_name_refs_dashdash,
 	p_rev_parse_abbrev_ref_symbolic_full_name,
 	p_rev_parse_abbrev_ref,
 	p_rev_parse_git_common_dir,
