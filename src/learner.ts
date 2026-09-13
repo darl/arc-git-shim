@@ -231,15 +231,41 @@ async function main(): Promise<void> {
 		modelRegistry,
 	})
 
+	// The episode log is the only record of a live episode: it runs detached
+	// and its stderr dies with the spawning shim. Log what the model actually
+	// produced — thinking, prose, tool calls and their results — so a wrong
+	// path can be traced back to the reasoning behind it. The file stays local
+	// under ~/.arc-git/logs and is never committed, so full text is fine;
+	// tool results are capped because a single read can be a whole file.
+	const block = (tag: string, body: string) => {
+		if (body.trim()) log(`[pi ${tag}]\n${body.trimEnd()}`)
+	}
+	const cap = (s: string, n = 4000) => (s.length <= n ? s : `${s.slice(0, n)}\n… (${s.length - n} more chars)`)
+	// pi tool results are {content: [{type:"text", text}, …]}; render the text
+	// so the log reads like a transcript instead of escaped JSON.
+	const toolText = (r: any): string => {
+		if (typeof r === "string") return r
+		if (Array.isArray(r?.content)) return r.content.map((b: any) => b?.text ?? JSON.stringify(b)).join("\n")
+		return JSON.stringify(r ?? null)
+	}
 	session.subscribe((e: any) => {
 		try {
 			const t = e?.type ?? ""
 			if (t === "tool_execution_start") {
 				log(`[pi tool] ${e.toolName} ${JSON.stringify(e.args ?? {})}`)
 				if (hand) process.stderr.write(`  [pi] ${e.toolName ?? "tool"} ${JSON.stringify(e.args ?? {}).slice(0, 160)}\n`)
-			} else if (hand && t === "message_final" && e.message?.role === "assistant") {
-				const txt = (e.message.content ?? []).map((c: any) => c.text ?? "").join("")
-				if (txt.trim()) process.stderr.write(`  [pi] ${txt.trim().split("\n")[0]}\n`)
+			} else if (t === "tool_execution_end") {
+				log(`[pi tool result] ${e.toolName}${e.isError ? " (error)" : ""}: ${cap(toolText(e.result))}`)
+			} else if (t === "message_end" && e.message?.role === "assistant") {
+				let text = ""
+				for (const c of e.message.content ?? []) {
+					if (c?.type === "thinking") block("thinking", c.redacted ? "(redacted by the provider)" : (c.thinking ?? ""))
+					else if (c?.type === "text") {
+						block("text", c.text ?? "")
+						text += c.text ?? ""
+					}
+				}
+				if (hand && text.trim()) process.stderr.write(`  [pi] ${text.trim().split("\n")[0]}\n`)
 			}
 		} catch {}
 	})
