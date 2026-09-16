@@ -21,6 +21,7 @@ import p_commit from "./paths/commit"
 import p_config_get_null from "./paths/config-get-null"
 import p_config_get_regex from "./paths/config-get-regex"
 import p_config_global_get_all from "./paths/config-global-get-all"
+import p_config_global_null_get_all from "./paths/config-global-null-get-all"
 import p_config_list_name_only from "./paths/config-list-name-only"
 import p_config_list from "./paths/config-list"
 import p_config_name_only_get_regexp from "./paths/config-name-only-get-regexp"
@@ -150,6 +151,7 @@ export const paths: Path[] = [
 	p_config_get_null,
 	p_config_get_regex,
 	p_config_global_get_all,
+	p_config_global_null_get_all,
 	p_config_list_name_only,
 	p_config_list,
 	p_config_name_only_get_regexp,
