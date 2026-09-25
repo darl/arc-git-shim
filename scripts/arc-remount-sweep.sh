@@ -22,7 +22,9 @@ while IFS=$'\t' read -r mnt store obj; do
 		echo "skip $mnt: mount dir not empty"
 	else
 		args=(mount -m "$mnt" -S "$store")
-		[ -n "$obj" ] && args+=(--object-store "$obj")
+		# A store that keeps its own objects reports them as its object-store;
+		# only a shared one (outside the store) needs to be passed back in.
+		case "$obj" in "" | "$store"/*) ;; *) args+=(--object-store "$obj") ;; esac
 		if [ "$dry" = 1 ]; then
 			echo "would run: arc ${args[*]}"
 		elif out=$(arc "${args[@]}" 2>&1); then
