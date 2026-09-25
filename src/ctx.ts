@@ -5,6 +5,7 @@ import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { configKey } from "./core"
 import type { ArcOpts, Ctx, ExecResult } from "./core"
+import { mountLauncher, mountPathOf, mountUnitName, systemdRunArgv } from "./mount-launch"
 
 export const SHIM_HOME = process.env.ARC_GIT_HOME ?? join(homedir(), ".arc-git")
 
@@ -45,6 +46,10 @@ export async function runArc(
 		const proc = Bun.spawn(["arc", ...args], { cwd, stdio: ["inherit", "inherit", "inherit"], env })
 		return { stdout: "", stderr: "", code: await proc.exited }
 	}
+	if (args[0] === "mount") {
+		const viaUnit = await runMountAsUserUnit(args, cwd)
+		if (viaUnit !== null) return viaUnit
+	}
 	const proc = Bun.spawn(["arc", ...args], {
 		cwd,
 		stdout: "pipe",
@@ -60,11 +65,48 @@ export async function runArc(
 	return { stdout, stderr, code }
 }
 
+function readCgroup(): string {
+	try {
+		return readFileSync("/proc/self/cgroup", "utf8")
+	} catch {
+		return ""
+	}
+}
+
+/** `arc mount` as a transient service of the user's systemd (see
+ * mount-launch.ts for why). Returns null when the mount should be spawned
+ * directly instead: not inside a foreign cgroup, or the user manager is not
+ * reachable from here. */
+async function runMountAsUserUnit(args: string[], cwd: string): Promise<ExecResult | null> {
+	const launcher = mountLauncher({
+		cgroup: readCgroup(),
+		platform: process.platform,
+		env: process.env as Record<string, string | undefined>,
+		uid: process.getuid?.() ?? 0,
+		haveSystemdRun: Bun.which("systemd-run") !== null,
+	})
+	if (launcher.kind !== "systemd-user") return null
+	const unit = mountUnitName(mountPathOf(args), process.pid)
+	const env = { ...process.env, ARC_NO_AUTO_UPDATE: "1", XDG_RUNTIME_DIR: launcher.runtimeDir } as Record<string, string>
+	const r = await runExec(systemdRunArgv(args, unit), cwd, env)
+	if (r.code === 0) return { stdout: "", stderr: "", code: 0 }
+	// systemd-run itself could not talk to the user manager (no lingering user
+	// instance, no runtime dir): fall back to a direct spawn.
+	if (r.code === 127 || /Failed to connect to bus|Failed to create bus connection|No such file or directory/.test(r.stderr)) {
+		return null
+	}
+	// The unit started and arc failed inside it. arc's own message went to
+	// the journal; fetch it so the caller sees the real reason, not a job id.
+	const log = await runExec(["journalctl", "--user", `--unit=${unit}`, "-o", "cat", "-n", "20", "--no-pager"], cwd, env)
+	const detail = log.code === 0 && log.stdout.trim() ? log.stdout : r.stderr
+	return { stdout: "", stderr: detail, code: 1 }
+}
+
 /** Non-arc subprocess (e.g. fusermount). A missing binary answers code 127
  * like a shell would — paths probe-and-degrade instead of catching throws. */
-export async function runExec(argv: string[], cwd: string): Promise<ExecResult> {
+export async function runExec(argv: string[], cwd: string, env?: Record<string, string>): Promise<ExecResult> {
 	try {
-		const proc = Bun.spawn(argv, { cwd, stdout: "pipe", stderr: "pipe", stdin: "ignore" })
+		const proc = Bun.spawn(argv, { cwd, stdout: "pipe", stderr: "pipe", stdin: "ignore", ...(env ? { env } : {}) })
 		const [stdout, stderr, code] = await Promise.all([
 			new Response(proc.stdout).text(),
 			new Response(proc.stderr).text(),
