@@ -49,6 +49,7 @@ import p_diff_prose from "./paths/diff-prose"
 import p_diff_quiet from "./paths/diff-quiet"
 import p_diff_raw_numstat from "./paths/diff-raw-numstat"
 import p_diff_rev_numstat_separator from "./paths/diff-rev-numstat-separator"
+import p_fetch_no_auto_gc from "./paths/fetch-no-auto-gc"
 import p_fetch from "./paths/fetch"
 import p_for_each_ref_committerdate from "./paths/for-each-ref-committerdate"
 import p_for_each_ref_count from "./paths/for-each-ref-count"
@@ -182,6 +183,7 @@ export const paths: Path[] = [
 	p_diff_quiet,
 	p_diff_raw_numstat,
 	p_diff_rev_numstat_separator,
+	p_fetch_no_auto_gc,
 	p_fetch,
 	p_for_each_ref_committerdate,
 	p_for_each_ref_count,
