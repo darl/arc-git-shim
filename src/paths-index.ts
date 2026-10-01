@@ -25,6 +25,7 @@ import p_config_global_null_get_all from "./paths/config-global-null-get-all"
 import p_config_list_name_only from "./paths/config-list-name-only"
 import p_config_list from "./paths/config-list"
 import p_config_name_only_get_regexp from "./paths/config-name-only-get-regexp"
+import p_config_null_get_regexp from "./paths/config-null-get-regexp"
 import p_config_path_get_null from "./paths/config-path-get-null"
 import p_config_replace_all from "./paths/config-replace-all"
 import p_config_system_get_all from "./paths/config-system-get-all"
@@ -159,6 +160,7 @@ export const paths: Path[] = [
 	p_config_list_name_only,
 	p_config_list,
 	p_config_name_only_get_regexp,
+	p_config_null_get_regexp,
 	p_config_path_get_null,
 	p_config_replace_all,
 	p_config_system_get_all,
