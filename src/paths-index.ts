@@ -112,6 +112,7 @@ import p_status_long from "./paths/status-long"
 import p_status_porcelain_v1_z_ignored_pathspec from "./paths/status-porcelain-v1-z-ignored-pathspec"
 import p_status_porcelain_v1_z from "./paths/status-porcelain-v1-z"
 import p_status_porcelain_v1 from "./paths/status-porcelain-v1"
+import p_status_porcelain_v2_no_ahead_behind from "./paths/status-porcelain-v2-no-ahead-behind"
 import p_status_porcelain_v2_z from "./paths/status-porcelain-v2-z"
 import p_status_porcelain_v2 from "./paths/status-porcelain-v2"
 import p_status_sb from "./paths/status-sb"
@@ -247,6 +248,7 @@ export const paths: Path[] = [
 	p_status_porcelain_v1_z_ignored_pathspec,
 	p_status_porcelain_v1_z,
 	p_status_porcelain_v1,
+	p_status_porcelain_v2_no_ahead_behind,
 	p_status_porcelain_v2_z,
 	p_status_porcelain_v2,
 	p_status_sb,
