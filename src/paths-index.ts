@@ -39,6 +39,7 @@ import p_diff_name_status from "./paths/diff-name-status"
 import p_diff_no_ext_diff_cached_patch_minimal from "./paths/diff-no-ext-diff-cached-patch-minimal"
 import p_diff_no_ext_diff_textconv_numstat from "./paths/diff-no-ext-diff-textconv-numstat"
 import p_diff_numstat_no_color_minimal_ignore_all_space_range from "./paths/diff-numstat-no-color-minimal-ignore-all-space-range"
+import p_diff_numstat_no_color_minimal_separator from "./paths/diff-numstat-no-color-minimal-separator"
 import p_diff_numstat from "./paths/diff-numstat"
 import p_diff_patch_minimal_ignore_all_space_range from "./paths/diff-patch-minimal-ignore-all-space-range"
 import p_diff_patch_minimal_ignore_all_space from "./paths/diff-patch-minimal-ignore-all-space"
@@ -176,6 +177,7 @@ export const paths: Path[] = [
 	p_diff_no_ext_diff_cached_patch_minimal,
 	p_diff_no_ext_diff_textconv_numstat,
 	p_diff_numstat_no_color_minimal_ignore_all_space_range,
+	p_diff_numstat_no_color_minimal_separator,
 	p_diff_numstat,
 	p_diff_patch_minimal_ignore_all_space_range,
 	p_diff_patch_minimal_ignore_all_space,
