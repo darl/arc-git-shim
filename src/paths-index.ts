@@ -35,6 +35,7 @@ import p_diff_cached_name_only_diff_filter from "./paths/diff-cached-name-only-d
 import p_diff_cached_name_only from "./paths/diff-cached-name-only"
 import p_diff_cached_name_status from "./paths/diff-cached-name-status"
 import p_diff_cached_numstat from "./paths/diff-cached-numstat"
+import p_diff_index_numstat from "./paths/diff-index-numstat"
 import p_diff_name_status from "./paths/diff-name-status"
 import p_diff_no_ext_diff_cached_patch_minimal from "./paths/diff-no-ext-diff-cached-patch-minimal"
 import p_diff_no_ext_diff_textconv_numstat from "./paths/diff-no-ext-diff-textconv-numstat"
@@ -174,6 +175,7 @@ export const paths: Path[] = [
 	p_diff_cached_name_only,
 	p_diff_cached_name_status,
 	p_diff_cached_numstat,
+	p_diff_index_numstat,
 	p_diff_name_status,
 	p_diff_no_ext_diff_cached_patch_minimal,
 	p_diff_no_ext_diff_textconv_numstat,
