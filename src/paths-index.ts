@@ -36,6 +36,7 @@ import p_diff_cached_name_only from "./paths/diff-cached-name-only"
 import p_diff_cached_name_status from "./paths/diff-cached-name-status"
 import p_diff_cached_numstat from "./paths/diff-cached-numstat"
 import p_diff_index_numstat from "./paths/diff-index-numstat"
+import p_diff_name_only_prefixed_range from "./paths/diff-name-only-prefixed-range"
 import p_diff_name_status from "./paths/diff-name-status"
 import p_diff_no_ext_diff_cached_patch_minimal from "./paths/diff-no-ext-diff-cached-patch-minimal"
 import p_diff_no_ext_diff_textconv_numstat from "./paths/diff-no-ext-diff-textconv-numstat"
@@ -54,6 +55,7 @@ import p_diff_prose from "./paths/diff-prose"
 import p_diff_quiet from "./paths/diff-quiet"
 import p_diff_raw_numstat from "./paths/diff-raw-numstat"
 import p_diff_rev_numstat_separator from "./paths/diff-rev-numstat-separator"
+import p_diff_unified_prefixed_range from "./paths/diff-unified-prefixed-range"
 import p_fetch_no_auto_gc from "./paths/fetch-no-auto-gc"
 import p_fetch from "./paths/fetch"
 import p_for_each_ref_committerdate from "./paths/for-each-ref-committerdate"
@@ -103,6 +105,7 @@ import p_rev_parse_is_inside_work_tree from "./paths/rev-parse-is-inside-work-tr
 import p_rev_parse_rev from "./paths/rev-parse-rev"
 import p_rev_parse_short from "./paths/rev-parse-short"
 import p_rev_parse_show_toplevel from "./paths/rev-parse-show-toplevel"
+import p_rev_parse_symbolic_verify from "./paths/rev-parse-symbolic-verify"
 import p_rev_parse_toplevel_common_dir from "./paths/rev-parse-toplevel-common-dir"
 import p_rev_parse_toplevel_git_dir_abbrev_ref from "./paths/rev-parse-toplevel-git-dir-abbrev-ref"
 import p_rev_parse_toplevel_git_dir_common_dir_superproject from "./paths/rev-parse-toplevel-git-dir-common-dir-superproject"
@@ -131,6 +134,7 @@ import p_unsupported_remote_mutate from "./paths/unsupported-remote-mutate"
 import p_unsupported_submodule from "./paths/unsupported-submodule"
 import p_unsupported_update_ref from "./paths/unsupported-update-ref"
 import p_unsupported_write_tree from "./paths/unsupported-write-tree"
+import p_update_ref_private_delete from "./paths/update-ref-private-delete"
 import p_worktree_add_help from "./paths/worktree-add-help"
 import p_worktree_add from "./paths/worktree-add"
 import p_worktree_flag_list from "./paths/worktree-flag-list"
@@ -177,6 +181,7 @@ export const paths: Path[] = [
 	p_diff_cached_name_status,
 	p_diff_cached_numstat,
 	p_diff_index_numstat,
+	p_diff_name_only_prefixed_range,
 	p_diff_name_status,
 	p_diff_no_ext_diff_cached_patch_minimal,
 	p_diff_no_ext_diff_textconv_numstat,
@@ -195,6 +200,7 @@ export const paths: Path[] = [
 	p_diff_quiet,
 	p_diff_raw_numstat,
 	p_diff_rev_numstat_separator,
+	p_diff_unified_prefixed_range,
 	p_fetch_no_auto_gc,
 	p_fetch,
 	p_for_each_ref_committerdate,
@@ -244,6 +250,7 @@ export const paths: Path[] = [
 	p_rev_parse_rev,
 	p_rev_parse_short,
 	p_rev_parse_show_toplevel,
+	p_rev_parse_symbolic_verify,
 	p_rev_parse_toplevel_common_dir,
 	p_rev_parse_toplevel_git_dir_abbrev_ref,
 	p_rev_parse_toplevel_git_dir_common_dir_superproject,
@@ -272,6 +279,7 @@ export const paths: Path[] = [
 	p_unsupported_submodule,
 	p_unsupported_update_ref,
 	p_unsupported_write_tree,
+	p_update_ref_private_delete,
 	p_worktree_add_help,
 	p_worktree_add,
 	p_worktree_flag_list,

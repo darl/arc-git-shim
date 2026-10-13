@@ -1,6 +1,6 @@
 // Production Ctx: real arc subprocess + persistent shim-local config store.
-import { createHash } from "node:crypto"
-import { existsSync, statSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { createHash, randomUUID } from "node:crypto"
+import { existsSync, statSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { configKey } from "./core"
@@ -124,6 +124,7 @@ export function makeCtx(cwd: string, arcRoot: string, noPager = false): { ctx: C
 	const ctx: Ctx = {
 		cwd,
 		arcRoot,
+		refs: persistentRefs(arcRoot),
 		config,
 		arc: (args: string[], opts?: ArcOpts) => runArc(args, opts?.cwd ?? cwd, { interactive: opts?.interactive, noPager }),
 		exec: (argv: string[]) => runExec(argv, cwd),
@@ -165,5 +166,35 @@ export function detectTree(dir: string): { kind: "git" | "arc"; root: string } |
 		const parent = dirname(d)
 		if (parent === d) return null
 		d = parent
+	}
+}
+
+/** One atomic file per ref prevents parallel fetches from overwriting each other's pins. */
+export function persistentRefs(arcRoot: string, home = SHIM_HOME): Ctx["refs"] {
+	const dir = join(home, "refs", createHash("sha256").update(arcRoot).digest("hex"))
+	const file = (name: string) => join(dir, createHash("sha256").update(name).digest("hex"))
+	return {
+		get(name) {
+			try {
+				return readFileSync(file(name), "utf8").trim()
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined
+				throw error
+			}
+		},
+		set(name, sha) {
+			mkdirSync(dir, { recursive: true })
+			const dest = file(name)
+			const temp = dest + "." + randomUUID()
+			try {
+				writeFileSync(temp, sha + "\n")
+				renameSync(temp, dest)
+			} finally {
+				rmSync(temp, { force: true })
+			}
+		},
+		delete(name) {
+			rmSync(file(name), { force: true })
+		},
 	}
 }

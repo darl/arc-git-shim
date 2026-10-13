@@ -24,7 +24,7 @@ import { arcRev, definePath, ok } from "../core"
 export default definePath({
 	name: "worktree-add",
 	summary: "arc mount (shared object store if configured) + branch checkout",
-	spec: "worktree add --no-track? --detach? -b=<branch>? <path> <base>?",
+	spec: "worktree add --no-track? --detach? (--quiet|-q)? -b=<branch>? <path> <base>?",
 
 	async run(args, ctx) {
 		const mountPath = args.pos.path!
@@ -59,10 +59,31 @@ export default definePath({
 				return { ...c, stderr: `fatal: arc ${co.join(" ")} failed in '${mountPath}':\n${c.stderr}` }
 			}
 		}
+		if (args.flags.has("--quiet") || args.flags.has("-q")) return ok()
 		return ok(`Preparing worktree (new branch '${args.pos.branch ?? args.pos.base ?? "trunk"}')\n`)
 	},
 
 	fixtures: [
+		{
+			name: "quiet detached review checkout",
+			argv: ["worktree", "add", "--detach", "--quiet", "/wt/review-guide-example/checkout", "a".repeat(40)],
+			arcReplies: {
+				"mount /wt/review-guide-example/checkout": {},
+				["checkout " + "a".repeat(40)]: {},
+			},
+			want: { stdout: "", stderr: "", code: 0 },
+		},
+		{
+			name: "quiet checkout failure still reports and cleans up",
+			argv: ["worktree", "add", "--detach", "-q", "/wt/review-guide-example/checkout", "a".repeat(40)],
+			arcReplies: {
+				"mount /wt/review-guide-example/checkout": {},
+				["checkout " + "a".repeat(40)]: { code: 1, stderr: "unknown revision\n" },
+				"unmount --force /wt/review-guide-example/checkout": {},
+				"unmount --forget /wt/review-guide-example/checkout": {},
+			},
+			want: { code: 1, stderr: `fatal: arc checkout ${"a".repeat(40)} failed in '/wt/review-guide-example/checkout':\nunknown revision\n` },
+		},
 		{
 			name: "shared-store mode: arc-wt mount-shared argv shape",
 			argv: ["worktree", "add", "-b", "task-3", "/wt/task-3", "trunk"],

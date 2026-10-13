@@ -1,7 +1,7 @@
 // orca probes ref existence: rev-parse --verify [--quiet] <ref>[^{commit}]
 // Exit 1 (quiet: silent) = ref missing — that exit code is DATA for orca.
 // arc rev-parse has no --verify; a plain resolve + exit-code mapping matches.
-import { arcRev, definePath, fail, ok } from "../core"
+import { arcRev, isPrivateRef, definePath, fail, ok } from "../core"
 
 export default definePath({
 	name: "rev-parse-verify",
@@ -10,6 +10,11 @@ export default definePath({
 
 	async run(args, ctx) {
 		const quiet = args.flags.has("--quiet") || args.flags.has("-q")
+		const ref = args.pos.ref!.replace(/\^\{commit\}$/, "")
+		if (isPrivateRef(ref)) {
+			const sha = ctx.refs.get(ref)
+			return sha ? ok(sha + "\n") : quiet ? fail(1, "") : fail(128, "fatal: Needed a single revision\n")
+		}
 		const r = await ctx.arc(["rev-parse", arcRev(args.pos.ref!)])
 		if (r.code !== 0) return quiet ? fail(1, "") : fail(128, "fatal: Needed a single revision\n")
 		return ok(r.stdout.endsWith("\n") ? r.stdout : r.stdout + "\n")

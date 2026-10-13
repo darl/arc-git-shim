@@ -18,6 +18,7 @@ export function cannedCtx(fx: Fixture, calls: string[]): Ctx {
 	return {
 		cwd: fx.cwd ?? FIXTURE_ROOT,
 		arcRoot: FIXTURE_ROOT,
+		refs: new Map<string, string>(),
 		pathExists: (p) => (fx.existingPaths ?? []).includes(p),
 		// seeds normalize like loadConfigStore does — the store never holds
 		// non-canonical keys in prod

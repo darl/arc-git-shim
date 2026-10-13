@@ -57,6 +57,12 @@ export interface Ctx {
 	/** Filesystem existence probe — injected so paths stay hermetic (real fs
 	 * in prod, Fixture.existingPaths in tests); never reach for node:fs. */
 	pathExists(p: string): boolean
+	/** Private commit pins, persisted independently of the config snapshot. */
+	refs: {
+		get(name: string): string | undefined
+		set(name: string, sha: string): void
+		delete(name: string): void
+	}
 	/** Shim-local config store (per arc root); persisted by the entry point. */
 	config: Map<string, string>
 }
@@ -553,3 +559,6 @@ export function numstatFromUnified(diff: string): { add: number | "-"; del: numb
 	flush()
 	return out
 }
+
+/** Private refs never become user branches or remote tracking refs. */
+export const isPrivateRef = (ref: string): boolean => /^refs\/t3\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(ref)

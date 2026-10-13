@@ -9,7 +9,7 @@
 // new worktrees to it — the passthrough left worktrees on days-old trunk),
 // so trunk is fetched explicitly; the current branch keeps arc's bare-fetch
 // refresh, best-effort (a local-only branch has no remote to fetch).
-import { arcInfo, definePath, fail, isDetached, isExecResult, isRemoteAlias } from "../core"
+import { arcInfo, isPrivateRef, definePath, fail, isDetached, isExecResult, isRemoteAlias } from "../core"
 
 export default definePath({
 	name: "fetch",
@@ -23,6 +23,12 @@ export default definePath({
 	async run(args, ctx) {
 		let branch = args.pos.branch ?? args.pos.remote
 		if (branch !== undefined && args.pos.branch === undefined && isRemoteAlias(branch)) branch = undefined
+		let destination: string | undefined
+		const pin = branch?.match(/^\+?refs\/heads\/(.+):(refs\/t3\/.+)$/)
+		if (pin && isPrivateRef(pin[2]!)) {
+			destination = pin[2]!
+			branch = pin[1]!
+		}
 		if (branch !== undefined && branch.includes(":")) {
 			// mirror refspec +refs/heads/<b>:refs/remotes/<remote>/<b> (t3code's
 			// fetchRemoteBranch) → arc fetch <b>; anything else (refs/pull/…) has
@@ -41,10 +47,22 @@ export default definePath({
 			return t
 		}
 		const r = await ctx.arc(["fetch", branch])
+		if (r.code !== 0 || destination === undefined) return r
+		const resolved = await ctx.arc(["rev-parse", `arcadia/${branch}`])
+		if (resolved.code !== 0) return resolved
+		const sha = resolved.stdout.trim()
+		if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(sha)) return fail(128, "fatal: arc-git: fetched branch did not resolve to a commit hash\n")
+		ctx.refs.set(destination, sha)
 		return r
 	},
 
 	fixtures: [
+		{
+			name: "review guide private base ref",
+			argv: ["fetch", "--quiet", "--no-tags", "origin", "+refs/heads/trunk:refs/t3/review-guide/one/base"],
+			arcReplies: { "fetch trunk": {}, "rev-parse arcadia/trunk": { stdout: "a".repeat(40) + "\n" } },
+			want: { stdout: "", code: 0 },
+		},
 		{
 			name: "bare fetch refreshes trunk and the current branch",
 			argv: ["fetch"],
