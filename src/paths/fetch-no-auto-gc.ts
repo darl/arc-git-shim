@@ -13,7 +13,7 @@ import fetchPath from "./fetch"
 export default definePath({
 	name: "fetch-no-auto-gc",
 	summary: "arc fetch; --no-auto-gc/--auto-gc accepted and dropped (arc has no gc)",
-	spec: "fetch (--auto-gc|--no-auto-gc) (--prune|-p)? --no-tags? (-q|--quiet)? <remote>? <branch>?",
+	spec: "fetch (--auto-gc|--no-auto-gc) (--prune|-p)? --no-tags? (-q|--quiet)? --? <remote>? <branch>?",
 	refine: (args) => {
 		if (args.pos.remote !== undefined && args.pos.branch !== undefined) return isRemoteAlias(args.pos.remote)
 		return true
@@ -26,6 +26,26 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			"name": "T3 background fetch with option separator",
+			"argv": [
+				"fetch",
+				"--quiet",
+				"--no-tags",
+				"--no-auto-gc",
+				"--",
+				"arcadia"
+			],
+			"arcReplies": {
+				"info --json": {
+					"stdout": "{\"branch\":\"trunk\"}"
+				},
+				"fetch trunk": {}
+			},
+			"want": {
+				"code": 0
+			}
+		},
 		{
 			name: "no-auto-gc bare fetch refreshes trunk and the current branch",
 			argv: ["fetch", "--quiet", "--no-tags", "--no-auto-gc", "arcadia"],

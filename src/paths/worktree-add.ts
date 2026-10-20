@@ -24,7 +24,7 @@ import { arcRev, definePath, ok } from "../core"
 export default definePath({
 	name: "worktree-add",
 	summary: "arc mount (shared object store if configured) + branch checkout",
-	spec: "worktree add --no-track? --detach? (--quiet|-q)? -b=<branch>? <path> <base>?",
+	spec: "worktree add --no-track? --detach? (--quiet|-q)? -b=<branch>? --? <path> <base>?",
 
 	async run(args, ctx) {
 		const mountPath = args.pos.path!
@@ -64,6 +64,30 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			"name": "T3 option separator with shared-store branch checkout",
+			"argv": [
+				"worktree",
+				"add",
+				"-b",
+				"task-example",
+				"--",
+				"/wt/task-example",
+				"trunk"
+			],
+			"config": {
+				"arcgit.storesbase": "/stores",
+				"arcgit.objectstore": "/objects"
+			},
+			"arcReplies": {
+				"mount -m /wt/task-example -S /stores/task-example --object-store /objects": {},
+				"checkout -b task-example trunk": {}
+			},
+			"want": {
+				"stdout": "Preparing worktree (new branch 'task-example')\n",
+				"code": 0
+			}
+		},
 		{
 			name: "quiet detached review checkout",
 			argv: ["worktree", "add", "--detach", "--quiet", "/wt/review-guide-example/checkout", "a".repeat(40)],

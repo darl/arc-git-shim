@@ -8,7 +8,7 @@ import { arcRevRange, countRange, definePath, fail, isExecResult, ok } from "../
 export default definePath({
 	name: "rev-list-count",
 	summary: "commit counts over ranges via arc log",
-	spec: "rev-list --count --left-right? <range>",
+	spec: "rev-list --count --left-right? --end-of-options? <range>",
 	refine: (args) => args.pos.range!.includes(".."),
 
 	async run(args, ctx) {
@@ -27,6 +27,24 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			"name": "T3 base comparison with end-of-options",
+			"argv": [
+				"rev-list",
+				"--count",
+				"--end-of-options",
+				"origin/trunk..HEAD"
+			],
+			"arcReplies": {
+				"log --format={commit} -n 1000 arcadia/trunk..HEAD": {
+					"stdout": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+				}
+			},
+			"want": {
+				"stdout": "1\n",
+				"code": 0
+			}
+		},
 		{
 			name: "left-right ahead 2 behind 1",
 			argv: ["rev-list", "--left-right", "--count", "HEAD...arcadia/trunk"],

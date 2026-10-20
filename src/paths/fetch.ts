@@ -14,7 +14,7 @@ import { arcInfo, isPrivateRef, definePath, fail, isDetached, isExecResult, isRe
 export default definePath({
 	name: "fetch",
 	summary: "arc fetch; bare fetch refreshes trunk + current branch",
-	spec: "fetch (--prune|-p)? --no-tags? (-q|--quiet)? <remote>? <branch>?",
+	spec: "fetch (--prune|-p)? --no-tags? (-q|--quiet)? --? <remote>? <branch>?",
 	refine: (args) => {
 		if (args.pos.remote !== undefined && args.pos.branch !== undefined) return isRemoteAlias(args.pos.remote)
 		return true
@@ -47,6 +47,12 @@ export default definePath({
 			return t
 		}
 		const r = await ctx.arc(["fetch", branch])
+		if (r.code !== 0 && r.stderr.trim() === `error: can't fetch ref '${branch}'`) {
+			// T3 distinguishes a missing branch from transport failures by Git's diagnostic.
+			const probe = await ctx.arc(["rev-parse", `arcadia/${branch}`])
+			if (probe.code !== 0 && probe.stderr.split(/\r?\n/).includes("no such remote branch"))
+				return fail(128, `fatal: couldn't find remote ref refs/heads/${branch}\n`)
+		}
 		if (r.code !== 0 || destination === undefined) return r
 		const resolved = await ctx.arc(["rev-parse", `arcadia/${branch}`])
 		if (resolved.code !== 0) return resolved
@@ -57,6 +63,71 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			"name": "missing remote ref uses Git diagnostic",
+			"argv": [
+				"fetch",
+				"--quiet",
+				"--",
+				"origin",
+				"+refs/heads/example-missing:refs/remotes/origin/example-missing"
+			],
+			"arcReplies": {
+				"fetch example-missing": {
+					"code": 1,
+					"stderr": "error: can't fetch ref 'example-missing'\n"
+				},
+				"rev-parse arcadia/example-missing": {
+					"code": 1,
+					"stderr": "trying to fetch remote branch\nno such remote branch\n"
+				}
+			},
+			"want": {
+				"code": 128,
+				"stderr": "fatal: couldn't find remote ref refs/heads/example-missing\n"
+			}
+		},
+		{
+			"name": "fetch connectivity failure is preserved",
+			"argv": [
+				"fetch",
+				"--quiet",
+				"--",
+				"origin",
+				"+refs/heads/example-missing:refs/remotes/origin/example-missing"
+			],
+			"arcReplies": {
+				"fetch example-missing": {
+					"code": 1,
+					"stderr": "error: can't fetch ref 'example-missing'\n"
+				},
+				"rev-parse arcadia/example-missing": {
+					"code": 1,
+					"stderr": "connection timed out\n"
+				}
+			},
+			"want": {
+				"code": 1,
+				"stderr": "error: can't fetch ref 'example-missing'\n"
+			}
+		},
+		{
+			"name": "T3 branch fetch with option separator",
+			"argv": [
+				"fetch",
+				"--quiet",
+				"--no-tags",
+				"--",
+				"origin",
+				"trunk"
+			],
+			"arcReplies": {
+				"fetch trunk": {}
+			},
+			"want": {
+				"code": 0
+			}
+		},
 		{
 			name: "review guide private base ref",
 			argv: ["fetch", "--quiet", "--no-tags", "origin", "+refs/heads/trunk:refs/t3/review-guide/one/base"],

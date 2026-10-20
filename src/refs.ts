@@ -13,6 +13,7 @@ export interface BranchEntry {
 	local?: boolean | null
 	name: string
 	current?: boolean
+	remote?: string
 	commit?: { id?: string; date?: string }
 }
 

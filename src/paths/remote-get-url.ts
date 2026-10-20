@@ -5,7 +5,7 @@ import { ARC_REMOTE_URL, definePath, fail, isRemoteAlias, ok } from "../core"
 export default definePath({
 	name: "remote-get-url",
 	summary: "URL of the single arcadia remote",
-	spec: "remote <sub> <name>",
+	spec: "remote <sub> --? <name>",
 	refine: (args) => args.pos.sub === "get-url",
 
 	async run(args) {
@@ -15,6 +15,20 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			"name": "T3 remote lookup with option separator",
+			"argv": [
+				"remote",
+				"get-url",
+				"--",
+				"origin"
+			],
+			"arcReplies": {},
+			"want": {
+				"stdout": "arc://arcadia/arcadia\n",
+				"code": 0
+			}
+		},
 		{
 			name: "arcadia url",
 			argv: ["remote", "get-url", "arcadia"],

@@ -6,7 +6,7 @@ import { arcRev, definePath, ok } from "../core"
 export default definePath({
 	name: "merge-base",
 	summary: "merge base of two commits",
-	spec: "merge-base <a> <b>",
+	spec: "merge-base --end-of-options? <a> <b>",
 
 	async run(args, ctx) {
 		const r = await ctx.arc(["merge-base", arcRev(args.pos.a!), arcRev(args.pos.b!)])
@@ -16,6 +16,24 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			"name": "T3 merge base with end-of-options",
+			"argv": [
+				"merge-base",
+				"--end-of-options",
+				"arcadia/trunk",
+				"HEAD"
+			],
+			"arcReplies": {
+				"merge-base arcadia/trunk HEAD": {
+					"stdout": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+				}
+			},
+			"want": {
+				"stdout": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+				"code": 0
+			}
+		},
 		{
 			name: "base of HEAD and trunk",
 			argv: ["merge-base", "HEAD", "trunk"],

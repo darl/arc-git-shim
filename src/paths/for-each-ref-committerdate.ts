@@ -8,7 +8,7 @@
 // every poll timed out and spammed the server log.
 //
 // Supported placeholders: %(HEAD) %(refname) %(refname:short)
-// %(committerdate:unix) %(symref) and %XX byte escapes (%09 tab, %00 NUL,
+// %(committerdate:unix) %(symref) %(upstream) and %XX byte escapes (%09 tab, %00 NUL,
 // etc.). %(symref) always renders empty: arc has no symbolic branch refs
 // (no arcadia/HEAD entry), and t3code's ref-snapshot parser only uses the
 // column to SKIP symbolic refs (`if (symbolicTarget) continue`), so empty
@@ -28,7 +28,7 @@
 import { definePath, isExecResult, ok } from "../core"
 import { byRefname, entryRefname, isoToUnix, listBranches, refMatches, renderRef, renderable } from "../refs"
 
-const SUPPORTED = /^(HEAD|refname|refname:short|committerdate:unix|symref)$/
+const SUPPORTED = /^(HEAD|refname|refname:short|committerdate:unix|symref|upstream)$/
 
 export default definePath({
 	name: "for-each-ref-committerdate",
@@ -38,13 +38,15 @@ export default definePath({
 
 	async run(args, ctx) {
 		const patterns = args.list.patterns ?? []
-		const entries = await listBranches(ctx, "-a", "-v")
+		// Upstream metadata requires -vv; dates still come from the same listing.
+		const entries = await listBranches(ctx, "-a", args.pos.fmt!.includes("%(upstream)") ? "-vv" : "-v")
 		if (isExecResult(entries)) return entries
 		const refs = entries
 			.map((e) => ({
 				refname: entryRefname(e),
 				current: !!e.current,
 				unixDate: isoToUnix(e.commit?.date ?? ""),
+				upstream: e.local && e.remote ? `refs/remotes/${e.remote}` : "",
 			}))
 			.filter((r) => patterns.some((p) => refMatches(p, r.refname)))
 			.sort(byRefname)
@@ -55,6 +57,7 @@ export default definePath({
 						renderRef(args.pos.fmt!, r.refname, r.current, {
 							"committerdate:unix": r.unixDate,
 							symref: "", // arc branches are never symbolic
+							upstream: r.upstream,
 						}) + "\n",
 				)
 				.join(""),
@@ -62,6 +65,45 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			name: "t3code ref snapshot with upstream: local tracking, untracked and remote refs",
+			argv: [
+				"for-each-ref",
+				"--format=%(refname)%09%(committerdate:unix)%09%(symref)%09%(upstream)",
+				"refs/heads",
+				"refs/remotes",
+			],
+			arcReplies: {
+				"branch -a -vv --json": {
+					stdout: JSON.stringify([
+						{ local: true, name: "dev", current: true, remote: "arcadia/users/darl/dev", commit: { date: "2026-07-20T12:00:00+03:00" } },
+						{ local: true, name: "trunk", commit: { date: "2026-07-21T09:30:00+03:00" } },
+						{ name: "arcadia/users/darl/dev", commit: { date: "2026-07-20T12:00:00+03:00" } },
+					]),
+				},
+			},
+			want: {
+				stdout:
+					"refs/heads/dev\t1784538000\t\trefs/remotes/arcadia/users/darl/dev\n" +
+					"refs/heads/trunk\t1784615400\t\t\n" +
+					"refs/remotes/arcadia/users/darl/dev\t1784538000\t\t\n",
+				code: 0,
+			},
+		},
+		{
+			name: "t3code upstream snapshot preserves arc errors",
+			argv: [
+				"for-each-ref",
+				"--format=%(refname)%09%(committerdate:unix)%09%(symref)%09%(upstream)",
+				"refs/heads",
+				"refs/remotes",
+			],
+			arcReplies: {
+				"branch -a -vv --json": { code: 1, stderr: "arc mount unavailable\n" },
+			},
+			want: { code: 1, stdout: "", stderr: "arc mount unavailable\n" },
+		},
+
 		{
 			name: "short refname + tab + unix committerdate for heads and remotes",
 			argv: ["for-each-ref", "--format=%(refname:short)%09%(committerdate:unix)", "refs/heads", "refs/remotes"],

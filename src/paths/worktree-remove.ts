@@ -34,7 +34,7 @@ const BUSY = /resource busy|processes are accessing/i
 export default definePath({
 	name: "worktree-remove",
 	summary: "arc unmount of a mount path (lazy-detach when busy)",
-	spec: "worktree remove (--force|-f)? <path>",
+	spec: "worktree remove (--force|-f)? --? <path>",
 
 	async run(args, ctx) {
 		const mnt = args.pos.path!
@@ -63,6 +63,24 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			"name": "T3 option separator preserves dirty worktree refusal",
+			"argv": [
+				"worktree",
+				"remove",
+				"--",
+				"/wt/task-example"
+			],
+			"arcReplies": {
+				"status --json -u all": {
+					"stdout": "{\"status\":{\"modified\":[{\"path\":\"example.txt\"}]}}"
+				}
+			},
+			"want": {
+				"code": 128,
+				"stderr": "fatal: '/wt/task-example' contains modified or untracked files, use --force to delete it\n"
+			}
+		},
 		{
 			name: "clean tree removes (status checked first)",
 			argv: ["worktree", "remove", "/wt/task-1"],

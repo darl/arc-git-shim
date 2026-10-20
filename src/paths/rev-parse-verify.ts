@@ -6,7 +6,7 @@ import { arcRev, isPrivateRef, definePath, fail, ok } from "../core"
 export default definePath({
 	name: "rev-parse-verify",
 	summary: "ref existence probe: OID on stdout, exit 1 when missing",
-	spec: "rev-parse --verify (--quiet|-q)? <ref>",
+	spec: "rev-parse --verify (--quiet|-q)? --end-of-options? <ref>",
 
 	async run(args, ctx) {
 		const quiet = args.flags.has("--quiet") || args.flags.has("-q")
@@ -21,6 +21,24 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			"name": "T3 base revision with end-of-options",
+			"argv": [
+				"rev-parse",
+				"--verify",
+				"--end-of-options",
+				"origin/trunk^{commit}"
+			],
+			"arcReplies": {
+				"rev-parse arcadia/trunk": {
+					"stdout": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+				}
+			},
+			"want": {
+				"stdout": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+				"code": 0
+			}
+		},
 		{
 			name: "existing ref with ^{commit} suffix",
 			argv: ["rev-parse", "--verify", "--quiet", "trunk^{commit}"],

@@ -6,7 +6,7 @@ import { arcRev, definePath, fail, ok } from "../core"
 export default definePath({
 	name: "merge-base-is-ancestor",
 	summary: "ancestor check via merge-base == rev-parse comparison",
-	spec: "merge-base --is-ancestor <a> <b>",
+	spec: "merge-base --is-ancestor --end-of-options? <a> <b>",
 
 	async run(args, ctx) {
 		const [a0, b0] = [arcRev(args.pos.a!), arcRev(args.pos.b!)]
@@ -21,6 +21,27 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			"name": "ancestor probe with end-of-options",
+			"argv": [
+				"merge-base",
+				"--is-ancestor",
+				"--end-of-options",
+				"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				"HEAD"
+			],
+			"arcReplies": {
+				"merge-base aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD": {
+					"stdout": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+				},
+				"rev-parse aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+					"stdout": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+				}
+			},
+			"want": {
+				"code": 0
+			}
+		},
 		{
 			name: "is ancestor: exit 0",
 			argv: ["merge-base", "--is-ancestor", "trunk", "HEAD"],
