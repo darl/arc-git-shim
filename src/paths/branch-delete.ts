@@ -6,7 +6,7 @@ import { definePath } from "../core"
 export default definePath({
 	name: "branch-delete",
 	summary: "delete branches via arc branch -d/-D",
-	spec: "branch (-d|-D|--delete) <branches...>",
+	spec: "branch (-d|-D|--delete) --? <branches...>",
 
 	async run(args, ctx) {
 		const force = args.flags.has("-D")
@@ -23,6 +23,21 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			"name": "T3 branch cleanup with separator",
+			"argv": [
+				"branch",
+				"-D",
+				"--",
+				"t3/repro"
+			],
+			"arcReplies": {
+				"branch -D t3/repro": {}
+			},
+			"want": {
+				"code": 0
+			}
+		},
 		{
 			name: "safe delete",
 			argv: ["branch", "-d", "feature-x"],

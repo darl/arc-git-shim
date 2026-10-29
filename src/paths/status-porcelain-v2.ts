@@ -20,7 +20,7 @@ export default definePath({
 	name: "status-porcelain-v2",
 	summary: "porcelain v2 with branch headers (orca poll)",
 	// git accepts both --porcelain=v2 and --porcelain=2 (the "v" is optional)
-	spec: "status --porcelain=(v2|2) --branch? --untracked-files=(all|no|normal)? (-uall|-uno)?",
+	spec: "status --porcelain=(v2|2) --branch? -z? --no-ahead-behind? --untracked-files=(all|no|normal)? (-uall|-uno)?",
 
 	async run(args, ctx) {
 		const uMode =
@@ -46,10 +46,16 @@ export default definePath({
 			if (info.remote) {
 				const up = `arcadia/${info.remote}`
 				lines.push(`# branch.upstream ${up}`)
-				const [ahead, behind] = await Promise.all([countRange(ctx, `${up}..HEAD`), countRange(ctx, `HEAD..${up}`)])
-				if (isExecResult(ahead)) return ahead
-				if (isExecResult(behind)) return behind
-				lines.push(`# branch.ab +${ahead} -${behind}`)
+				if (args.flags.has("--no-ahead-behind")) {
+					const tip = await ctx.arc(["rev-parse", up])
+					if (tip.code !== 0) return tip
+					lines.push(tip.stdout.trim() === info.hash ? "# branch.ab +0 -0" : "# branch.ab +? -?")
+				} else {
+					const [ahead, behind] = await Promise.all([countRange(ctx, `${up}..HEAD`), countRange(ctx, `HEAD..${up}`)])
+					if (isExecResult(ahead)) return ahead
+					if (isExecResult(behind)) return behind
+					lines.push(`# branch.ab +${ahead} -${behind}`)
+				}
 			}
 		}
 
@@ -69,10 +75,61 @@ export default definePath({
 			for (const e of (parsed.status?.untracked ?? []).slice().sort((a, b) => (a.path < b.path ? -1 : 1)))
 				lines.push(`? ${e.path}`)
 
-		return ok(lines.length ? lines.join("\n") + "\n" : "")
+		const separator = args.flags.has("-z") ? "\0" : "\n"
+		return ok(lines.length ? lines.join(separator) + separator : "")
 	},
 
 	fixtures: [
+		{
+			"name": "T3 NUL status without ahead-behind: equal upstream",
+			"argv": [
+				"status",
+				"--porcelain=2",
+				"--branch",
+				"-z",
+				"--no-ahead-behind"
+			],
+			"arcReplies": {
+				"info --json": {
+					"stdout": "{\"branch\": \"task\", \"remote\": \"users/darl/task\", \"hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+				},
+				"rev-parse arcadia/users/darl/task": {
+					"stdout": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+				},
+				"status --json -u normal": {
+					"stdout": "{\"status\": {\"untracked\": [{\"path\": \"file with\\nnewline\"}]}}"
+				}
+			},
+			"want": {
+				"code": 0,
+				"stdout": "# branch.oid aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\u0000# branch.head task\u0000# branch.upstream arcadia/users/darl/task\u0000# branch.ab +0 -0\u0000? file with\nnewline\u0000"
+			}
+		},
+		{
+			"name": "T3 NUL status without ahead-behind: different upstream",
+			"argv": [
+				"status",
+				"--porcelain=2",
+				"--branch",
+				"-z",
+				"--no-ahead-behind"
+			],
+			"arcReplies": {
+				"info --json": {
+					"stdout": "{\"branch\": \"task\", \"remote\": \"users/darl/task\", \"hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+				},
+				"rev-parse arcadia/users/darl/task": {
+					"stdout": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n"
+				},
+				"status --json -u normal": {
+					"stdout": "{\"status\": {\"untracked\": [{\"path\": \"file with\\nnewline\"}]}}"
+				}
+			},
+			"want": {
+				"code": 0,
+				"stdout": "# branch.oid aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\u0000# branch.head task\u0000# branch.upstream arcadia/users/darl/task\u0000# branch.ab +? -?\u0000? file with\nnewline\u0000"
+			}
+		},
 		{
 			name: "orca poll: branch headers + staged + untracked",
 			argv: ["status", "--porcelain=v2", "--branch", "--untracked-files=all"],

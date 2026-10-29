@@ -6,7 +6,7 @@ import verify from "./rev-parse-verify"
 export default definePath({
 	name: "rev-parse-symbolic-verify",
 	summary: "verified full branch ref, or empty output for a commit expression",
-	spec: "rev-parse --symbolic-full-name --verify (--quiet|-q)? --end-of-options? <ref>",
+	spec: "rev-parse --symbolic-full-name --verify? (--quiet|-q)? --end-of-options? <ref>",
 
 	async run(args, ctx) {
 		const ref = args.pos.ref === "@" ? "HEAD" : args.pos.ref!
@@ -32,6 +32,46 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			"name": "T3 resolves raw commit without verify",
+			"argv": [
+				"rev-parse",
+				"--symbolic-full-name",
+				"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+			],
+			"arcReplies": {
+				"rev-parse aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+					"stdout": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+				},
+				"branch -a --json": {
+					"stdout": "[]"
+				}
+			},
+			"want": {
+				"stdout": "",
+				"code": 0
+			}
+		},
+		{
+			"name": "T3 resolves remote without verify",
+			"argv": [
+				"rev-parse",
+				"--symbolic-full-name",
+				"origin/trunk"
+			],
+			"arcReplies": {
+				"rev-parse arcadia/trunk": {
+					"stdout": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+				},
+				"branch -a --json": {
+					"stdout": "[{\"name\":\"arcadia/trunk\"}]"
+				}
+			},
+			"want": {
+				"stdout": "refs/remotes/arcadia/trunk\n",
+				"code": 0
+			}
+		},
 		{
 			name: "verified local branch with end-of-options",
 			argv: ["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", "trunk"],

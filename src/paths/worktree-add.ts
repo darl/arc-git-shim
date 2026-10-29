@@ -19,7 +19,8 @@
 // object store is deliberately standalone (owned by no mount): a store owned
 // by a mount would die with that mount's `unmount --forget`.
 // Without the keys: plain isolated-store mount (original behavior).
-import { arcRev, definePath, ok } from "../core"
+import { arcRev, definePath, fail, isExecResult, ok } from "../core"
+import { listBranches, type BranchEntry } from "../refs"
 
 export default definePath({
 	name: "worktree-add",
@@ -28,6 +29,15 @@ export default definePath({
 
 	async run(args, ctx) {
 		const mountPath = args.pos.path!
+		const base = args.pos.base !== undefined ? arcRev(args.pos.base) : undefined
+		let sourceBranch: BranchEntry | undefined
+		if (args.pos.branch === undefined && !args.flags.has("--detach") && base !== undefined && !/^[a-f0-9]{40}$/.test(base)) {
+			const branches = await listBranches(ctx, "-v")
+			if (isExecResult(branches)) return branches
+			sourceBranch = branches.find(b => b.local && b.name === base)
+			if (sourceBranch && !/^[a-f0-9]{40}$/.test(sourceBranch.commit?.id ?? ""))
+				return fail(128, `fatal: cannot resolve branch '${base}' before creating worktree\n`)
+		}
 		const storesBase = ctx.config.get("arcgit.storesbase")
 		const objectStore = ctx.config.get("arcgit.objectstore")
 		const mountArgs = ["mount", mountPath]
@@ -39,24 +49,30 @@ export default definePath({
 		}
 		const m = await ctx.arc(mountArgs)
 		if (m.code !== 0) return m
-		// orca qualifies the base it probed (refs/remotes/arcadia/trunk) before
-		// handing it to worktree add; arc only knows the short form
-		const base = args.pos.base !== undefined ? arcRev(args.pos.base) : undefined
 		const co =
 			args.pos.branch !== undefined
 				? ["checkout", "-b", args.pos.branch, ...(base !== undefined ? [base] : [])]
 				: base !== undefined
 					? ["checkout", base]
 					: null
-		if (co !== null) {
-			const c = await ctx.arc(co, { cwd: mountPath })
+		const commands = co === null ? [] : [co]
+		if (sourceBranch) {
+			// Arc mounts have independent branch stores; pin the source tip before mounting.
+			// Detach first so even the fresh mount's existing trunk can be reset safely.
+			commands.splice(0, commands.length,
+				["checkout", sourceBranch.commit!.id!],
+				["branch", "--force", sourceBranch.name, sourceBranch.commit!.id!],
+				["checkout", sourceBranch.name],
+			)
+			if (sourceBranch.remote)
+				commands.push(["branch", "-u", arcRev(sourceBranch.remote).replace(/^arcadia\//, ""), sourceBranch.name])
+		}
+		for (const command of commands) {
+			const c = await ctx.arc(command, { cwd: mountPath })
 			if (c.code !== 0) {
-				// git worktree add is atomic: a failed checkout leaves no worktree
-				// behind. Drop the fresh mount (and its store record) so a retry
-				// does not hit "already mounted" and no orphan mount lingers.
 				await ctx.arc(["unmount", "--force", mountPath], { cwd: "/" })
 				await ctx.arc(["unmount", "--forget", mountPath], { cwd: "/" })
-				return { ...c, stderr: `fatal: arc ${co.join(" ")} failed in '${mountPath}':\n${c.stderr}` }
+				return { ...c, stderr: `fatal: arc ${command.join(" ")} failed in '${mountPath}':\n${c.stderr}` }
 			}
 		}
 		if (args.flags.has("--quiet") || args.flags.has("-q")) return ok()
@@ -64,6 +80,100 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			"name": "existing local branch transferred into private store: t3/repro",
+			"argv": [
+				"worktree",
+				"add",
+				"--",
+				"/wt/repro",
+				"t3/repro"
+			],
+			"arcReplies": {
+				"branch -v --json": {
+					"stdout": "[{\"name\": \"t3/repro\", \"local\": true, \"commit\": {\"id\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}}]"
+				},
+				"mount /wt/repro": {},
+				"checkout aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {},
+				"branch --force t3/repro aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {},
+				"checkout t3/repro": {}
+			},
+			"want": {
+				"code": 0,
+				"stdout": "Preparing worktree (new branch 't3/repro')\n"
+			}
+		},
+		{
+			"name": "existing local branch transferred into private store: trunk",
+			"argv": [
+				"worktree",
+				"add",
+				"--",
+				"/wt/repro",
+				"trunk"
+			],
+			"arcReplies": {
+				"branch -v --json": {
+					"stdout": "[{\"name\": \"trunk\", \"local\": true, \"commit\": {\"id\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}, \"remote\": \"arcadia/trunk\"}]"
+				},
+				"mount /wt/repro": {},
+				"checkout aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {},
+				"branch --force trunk aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {},
+				"checkout trunk": {},
+				"branch -u trunk trunk": {}
+			},
+			"want": {
+				"code": 0,
+				"stdout": "Preparing worktree (new branch 'trunk')\n"
+			}
+		},
+		{
+			"name": "branch listing failure prevents mount",
+			"argv": [
+				"worktree",
+				"add",
+				"--",
+				"/wt/repro",
+				"t3/repro"
+			],
+			"arcReplies": {
+				"branch -v --json": {
+					"code": 1,
+					"stderr": "mount unavailable\n"
+				}
+			},
+			"want": {
+				"code": 1,
+				"stderr": "mount unavailable\n"
+			}
+		},
+		{
+			"name": "branch transfer failure removes fresh mount",
+			"argv": [
+				"worktree",
+				"add",
+				"--",
+				"/wt/repro",
+				"t3/repro"
+			],
+			"arcReplies": {
+				"branch -v --json": {
+					"stdout": "[{\"local\": true, \"name\": \"t3/repro\", \"commit\": {\"id\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}}]"
+				},
+				"mount /wt/repro": {},
+				"checkout aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {},
+				"branch --force t3/repro aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+					"code": 1,
+					"stderr": "cannot create branch\n"
+				},
+				"unmount --force /wt/repro": {},
+				"unmount --forget /wt/repro": {}
+			},
+			"want": {
+				"code": 1,
+				"stderr": "fatal: arc branch --force t3/repro aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa failed in '/wt/repro':\ncannot create branch\n"
+			}
+		},
 		{
 			"name": "T3 option separator with shared-store branch checkout",
 			"argv": [

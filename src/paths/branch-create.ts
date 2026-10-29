@@ -10,7 +10,7 @@ import { definePath, ok } from "../core"
 export default definePath({
 	name: "branch-create",
 	summary: "create/reset a branch at a start point via arc branch",
-	spec: "branch (-f|--force)? (-q|--quiet)? <name> <start>?",
+	spec: "branch (-f|--force)? (-q|--quiet)? --no-track? --? <name> <start>?",
 
 	async run(args, ctx) {
 		const name = args.pos.name!
@@ -25,6 +25,23 @@ export default definePath({
 	},
 
 	fixtures: [
+		{
+			"name": "T3 creates branch without tracking before worktree add",
+			"argv": [
+				"branch",
+				"--no-track",
+				"--",
+				"t3/repro",
+				"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+			],
+			"arcReplies": {
+				"branch t3/repro aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {}
+			},
+			"want": {
+				"stdout": "",
+				"code": 0
+			}
+		},
 		{
 			name: "create at start point",
 			argv: ["branch", "feature-w", "arcadia/users/darl/feature-w"],
