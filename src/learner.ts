@@ -254,7 +254,7 @@ async function main(): Promise<void> {
 	try {
 		configModel = JSON.parse(readFileSync(join(SHIM_HOME, "config.json"), "utf8")).defaultModel
 	} catch {}
-	const [prov, id] = (payload.model ?? configModel ?? "openai/glm-6-luna").split("/") as [string, string]
+	const [prov, id] = (payload.model ?? configModel ?? "openai/gpt-6-luna").split("/") as [string, string]
 	const model = modelRegistry.find(prov, id)
 	if (!model) dieLearning(`learning failed: model ${prov}/${id} not available`)
 
