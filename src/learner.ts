@@ -245,17 +245,16 @@ async function main(): Promise<void> {
 	phase(`unknown command 'git ${payload.argv.join(" ")}', learning… (follow: tail -F ${logFile})`)
 	const before = listPaths()
 
-	const { AuthStorage, ModelRegistry, DefaultResourceLoader, SessionManager, createAgentSession, getAgentDir } =
+	const { ModelRuntime, DefaultResourceLoader, SessionManager, createAgentSession, getAgentDir } =
 		await import("@earendil-works/pi-coding-agent")
 
-	const authStorage = AuthStorage.create()
-	const modelRegistry = ModelRegistry.create(authStorage)
+	const modelRuntime = await ModelRuntime.create()
 	let configModel: string | undefined
 	try {
 		configModel = JSON.parse(readFileSync(join(SHIM_HOME, "config.json"), "utf8")).defaultModel
 	} catch {}
-	const [prov, id] = (payload.model ?? configModel ?? "openai/gpt-6-luna").split("/") as [string, string]
-	const model = modelRegistry.find(prov, id)
+	const [prov, id] = (payload.model ?? configModel ?? "openai/gpt-6.1-terra").split("/") as [string, string]
+	const model = modelRuntime.getModel(prov, id)
 	if (!model) dieLearning(`learning failed: model ${prov}/${id} not available`)
 
 	const loader = new DefaultResourceLoader({
@@ -273,8 +272,7 @@ async function main(): Promise<void> {
 		tools: ["read", "grep", "find", "ls", "edit", "write", "bash"],
 		resourceLoader: loader,
 		sessionManager: SessionManager.inMemory(SRC),
-		authStorage,
-		modelRegistry,
+		modelRuntime,
 	})
 
 	// The episode log is the only record of a live episode: it runs detached
