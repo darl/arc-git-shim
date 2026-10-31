@@ -118,6 +118,7 @@ import p_show_blob from "./paths/show-blob"
 import p_show_commit from "./paths/show-commit"
 import p_show_format_quiet from "./paths/show-format-quiet"
 import p_show_ref_verify from "./paths/show-ref-verify"
+import p_show_stat_subject_directory from "./paths/show-stat-subject-directory"
 import p_stash from "./paths/stash"
 import p_status_long from "./paths/status-long"
 import p_status_porcelain_v1_z_ignored_pathspec from "./paths/status-porcelain-v1-z-ignored-pathspec"
@@ -267,6 +268,7 @@ export const paths: Path[] = [
 	p_show_commit,
 	p_show_format_quiet,
 	p_show_ref_verify,
+	p_show_stat_subject_directory,
 	p_stash,
 	p_status_long,
 	p_status_porcelain_v1_z_ignored_pathspec,
