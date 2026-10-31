@@ -72,6 +72,7 @@ import p_log_cherry_mark_right_only from "./paths/log-cherry-mark-right-only"
 import p_log_format from "./paths/log-format"
 import p_log_no_merges_format from "./paths/log-no-merges-format"
 import p_log_one from "./paths/log-one"
+import p_log_oneline_40 from "./paths/log-oneline-40"
 import p_log_plain from "./paths/log-plain"
 import p_ls_files_error_unmatch from "./paths/ls-files-error-unmatch"
 import p_ls_files_others_dashdash from "./paths/ls-files-others-dashdash"
@@ -219,6 +220,7 @@ export const paths: Path[] = [
 	p_log_format,
 	p_log_no_merges_format,
 	p_log_one,
+	p_log_oneline_40,
 	p_log_plain,
 	p_ls_files_error_unmatch,
 	p_ls_files_others_dashdash,
