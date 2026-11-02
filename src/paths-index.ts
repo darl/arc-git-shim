@@ -123,6 +123,7 @@ import p_show_ref_verify from "./paths/show-ref-verify"
 import p_show_stat_subject_directory from "./paths/show-stat-subject-directory"
 import p_stash from "./paths/stash"
 import p_status_long from "./paths/status-long"
+import p_status_porcelain_ignore_submodules_dirty from "./paths/status-porcelain-ignore-submodules-dirty"
 import p_status_porcelain_v1_z_ignored_pathspec from "./paths/status-porcelain-v1-z-ignored-pathspec"
 import p_status_porcelain_v1_z from "./paths/status-porcelain-v1-z"
 import p_status_porcelain_v1 from "./paths/status-porcelain-v1"
@@ -275,6 +276,7 @@ export const paths: Path[] = [
 	p_show_stat_subject_directory,
 	p_stash,
 	p_status_long,
+	p_status_porcelain_ignore_submodules_dirty,
 	p_status_porcelain_v1_z_ignored_pathspec,
 	p_status_porcelain_v1_z,
 	p_status_porcelain_v1,
