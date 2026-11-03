@@ -79,6 +79,7 @@ import p_log_plain from "./paths/log-plain"
 import p_ls_files_error_unmatch from "./paths/ls-files-error-unmatch"
 import p_ls_files_others_dashdash from "./paths/ls-files-others-dashdash"
 import p_ls_files_others_exclude_standard from "./paths/ls-files-others-exclude-standard"
+import p_ls_files_others_multiple_top_literal from "./paths/ls-files-others-multiple-top-literal"
 import p_ls_files_others_top_literal from "./paths/ls-files-others-top-literal"
 import p_ls_files_verbose from "./paths/ls-files-verbose"
 import p_ls_files from "./paths/ls-files"
@@ -233,6 +234,7 @@ export const paths: Path[] = [
 	p_ls_files_error_unmatch,
 	p_ls_files_others_dashdash,
 	p_ls_files_others_exclude_standard,
+	p_ls_files_others_multiple_top_literal,
 	p_ls_files_others_top_literal,
 	p_ls_files_verbose,
 	p_ls_files,
