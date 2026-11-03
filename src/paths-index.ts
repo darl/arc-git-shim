@@ -34,6 +34,7 @@ import p_config from "./paths/config"
 import p_diff_cached_name_only_diff_filter from "./paths/diff-cached-name-only-diff-filter"
 import p_diff_cached_name_only from "./paths/diff-cached-name-only"
 import p_diff_cached_name_status from "./paths/diff-cached-name-status"
+import p_diff_cached_no_renames_deleted_names from "./paths/diff-cached-no-renames-deleted-names"
 import p_diff_cached_numstat from "./paths/diff-cached-numstat"
 import p_diff_index_numstat from "./paths/diff-index-numstat"
 import p_diff_name_only_prefixed_range from "./paths/diff-name-only-prefixed-range"
@@ -189,6 +190,7 @@ export const paths: Path[] = [
 	p_diff_cached_name_only_diff_filter,
 	p_diff_cached_name_only,
 	p_diff_cached_name_status,
+	p_diff_cached_no_renames_deleted_names,
 	p_diff_cached_numstat,
 	p_diff_index_numstat,
 	p_diff_name_only_prefixed_range,
