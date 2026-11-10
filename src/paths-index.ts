@@ -64,6 +64,7 @@ import p_fetch_no_auto_gc from "./paths/fetch-no-auto-gc"
 import p_fetch from "./paths/fetch"
 import p_for_each_ref_committerdate from "./paths/for-each-ref-committerdate"
 import p_for_each_ref_count from "./paths/for-each-ref-count"
+import p_for_each_ref_heads_strip_two from "./paths/for-each-ref-heads-strip-two"
 import p_for_each_ref_multi_pattern from "./paths/for-each-ref-multi-pattern"
 import p_for_each_ref_remotes from "./paths/for-each-ref-remotes"
 import p_for_each_ref_sort_objectname from "./paths/for-each-ref-sort-objectname"
@@ -223,6 +224,7 @@ export const paths: Path[] = [
 	p_fetch,
 	p_for_each_ref_committerdate,
 	p_for_each_ref_count,
+	p_for_each_ref_heads_strip_two,
 	p_for_each_ref_multi_pattern,
 	p_for_each_ref_remotes,
 	p_for_each_ref_sort_objectname,
