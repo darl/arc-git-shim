@@ -77,6 +77,7 @@ import p_for_each_ref from "./paths/for-each-ref"
 import p_hash_object_stdin_paths from "./paths/hash-object-stdin-paths"
 import p_log_cherry_mark_right_only from "./paths/log-cherry-mark-right-only"
 import p_log_format from "./paths/log-format"
+import p_log_modified_names from "./paths/log-modified-names"
 import p_log_no_merges_format from "./paths/log-no-merges-format"
 import p_log_one from "./paths/log-one"
 import p_log_oneline_40_directory from "./paths/log-oneline-40-directory"
@@ -239,6 +240,7 @@ export const paths: Path[] = [
 	p_hash_object_stdin_paths,
 	p_log_cherry_mark_right_only,
 	p_log_format,
+	p_log_modified_names,
 	p_log_no_merges_format,
 	p_log_one,
 	p_log_oneline_40_directory,
