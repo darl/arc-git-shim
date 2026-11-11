@@ -112,6 +112,7 @@ import p_rev_parse_git_dir_git_paths_symbolic_full_name from "./paths/rev-parse-
 import p_rev_parse_git_dir_git_paths from "./paths/rev-parse-git-dir-git-paths"
 import p_rev_parse_git_dir from "./paths/rev-parse-git-dir"
 import p_rev_parse_git_path from "./paths/rev-parse-git-path"
+import p_rev_parse_inside_work_tree_show_cdup from "./paths/rev-parse-inside-work-tree-show-cdup"
 import p_rev_parse_inside_work_tree_toplevel_common_dir from "./paths/rev-parse-inside-work-tree-toplevel-common-dir"
 import p_rev_parse_is_bare_repository from "./paths/rev-parse-is-bare-repository"
 import p_rev_parse_is_inside_work_tree from "./paths/rev-parse-is-inside-work-tree"
@@ -275,6 +276,7 @@ export const paths: Path[] = [
 	p_rev_parse_git_dir_git_paths,
 	p_rev_parse_git_dir,
 	p_rev_parse_git_path,
+	p_rev_parse_inside_work_tree_show_cdup,
 	p_rev_parse_inside_work_tree_toplevel_common_dir,
 	p_rev_parse_is_bare_repository,
 	p_rev_parse_is_inside_work_tree,
