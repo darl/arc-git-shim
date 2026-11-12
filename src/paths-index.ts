@@ -47,6 +47,7 @@ import p_diff_no_ext_diff_textconv_numstat from "./paths/diff-no-ext-diff-textco
 import p_diff_numstat_no_color_minimal_ignore_all_space_range from "./paths/diff-numstat-no-color-minimal-ignore-all-space-range"
 import p_diff_numstat_no_color_minimal_separator from "./paths/diff-numstat-no-color-minimal-separator"
 import p_diff_numstat_no_color_prefixed_separator from "./paths/diff-numstat-no-color-prefixed-separator"
+import p_diff_numstat_submodule_short_minimal_ignore_space from "./paths/diff-numstat-submodule-short-minimal-ignore-space"
 import p_diff_numstat_submodule_short_prefixed from "./paths/diff-numstat-submodule-short-prefixed"
 import p_diff_numstat from "./paths/diff-numstat"
 import p_diff_patch_find_renames_prefix_ignore_all_space from "./paths/diff-patch-find-renames-prefix-ignore-all-space"
@@ -212,6 +213,7 @@ export const paths: Path[] = [
 	p_diff_numstat_no_color_minimal_ignore_all_space_range,
 	p_diff_numstat_no_color_minimal_separator,
 	p_diff_numstat_no_color_prefixed_separator,
+	p_diff_numstat_submodule_short_minimal_ignore_space,
 	p_diff_numstat_submodule_short_prefixed,
 	p_diff_numstat,
 	p_diff_patch_find_renames_prefix_ignore_all_space,
