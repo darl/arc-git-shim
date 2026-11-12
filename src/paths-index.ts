@@ -94,6 +94,7 @@ import p_ls_files from "./paths/ls-files"
 import p_ls_remote_heads from "./paths/ls-remote-heads"
 import p_merge_base_is_ancestor from "./paths/merge-base-is-ancestor"
 import p_merge_base from "./paths/merge-base"
+import p_merge_file_print from "./paths/merge-file-print"
 import p_mv from "./paths/mv"
 import p_pull from "./paths/pull"
 import p_push from "./paths/push"
@@ -261,6 +262,7 @@ export const paths: Path[] = [
 	p_ls_remote_heads,
 	p_merge_base_is_ancestor,
 	p_merge_base,
+	p_merge_file_print,
 	p_mv,
 	p_pull,
 	p_push,
