@@ -81,6 +81,7 @@ import p_log_format from "./paths/log-format"
 import p_log_modified_names from "./paths/log-modified-names"
 import p_log_no_merges_format from "./paths/log-no-merges-format"
 import p_log_one from "./paths/log-one"
+import p_log_oneline_3 from "./paths/log-oneline-3"
 import p_log_oneline_40_directory from "./paths/log-oneline-40-directory"
 import p_log_oneline_40 from "./paths/log-oneline-40"
 import p_log_plain from "./paths/log-plain"
@@ -249,6 +250,7 @@ export const paths: Path[] = [
 	p_log_modified_names,
 	p_log_no_merges_format,
 	p_log_one,
+	p_log_oneline_3,
 	p_log_oneline_40_directory,
 	p_log_oneline_40,
 	p_log_plain,
