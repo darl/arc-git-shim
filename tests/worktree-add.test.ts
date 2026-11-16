@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import { compileSpec, fail, ok, parseSpec } from "../src/core"
 import { cannedCtx } from "../src/harness"
 import worktreeAdd from "../src/paths/worktree-add"
+import worktreeAddHelp from "../src/paths/worktree-add-help"
 
 for (const fx of worktreeAdd.fixtures.filter(f => f.name.startsWith("existing local branch transferred"))) {
 	test(fx.name + " preserves branch state across isolated mounts", async () => {
@@ -36,5 +37,15 @@ for (const fx of worktreeAdd.fixtures.filter(f => f.name.startsWith("existing lo
 		expect(head).toBe(branch)
 		expect(localBranches.get(head)).toBe(sha)
 		expect(tracking.get(branch)).toBe(branch === "trunk" ? "trunk" : undefined)
+	})
+}
+
+for (const flag of ["-h", "--help"]) {
+	test("worktree add " + flag + " does not advertise unsupported locks", async () => {
+		const fx = { name: "worktree help capabilities", argv: ["worktree", "add", flag], arcReplies: {}, want: { code: 129 } }
+		const result = await worktreeAddHelp.run(parseSpec(compileSpec(worktreeAddHelp.spec), fx.argv)!, cannedCtx(fx, []))
+		expect(result.code).toBe(129)
+		expect(result.stdout + result.stderr).not.toContain("--reason")
+		expect(result.stdout + result.stderr).not.toContain("--lock")
 	})
 }
