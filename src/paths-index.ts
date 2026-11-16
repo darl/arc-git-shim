@@ -65,6 +65,7 @@ import p_diff_raw_numstat from "./paths/diff-raw-numstat"
 import p_diff_rev_numstat_separator from "./paths/diff-rev-numstat-separator"
 import p_diff_unified_prefixed_range from "./paths/diff-unified-prefixed-range"
 import p_fetch_no_auto_gc from "./paths/fetch-no-auto-gc"
+import p_fetch_no_write_fetch_head from "./paths/fetch-no-write-fetch-head"
 import p_fetch from "./paths/fetch"
 import p_for_each_ref_committerdate from "./paths/for-each-ref-committerdate"
 import p_for_each_ref_count from "./paths/for-each-ref-count"
@@ -236,6 +237,7 @@ export const paths: Path[] = [
 	p_diff_rev_numstat_separator,
 	p_diff_unified_prefixed_range,
 	p_fetch_no_auto_gc,
+	p_fetch_no_write_fetch_head,
 	p_fetch,
 	p_for_each_ref_committerdate,
 	p_for_each_ref_count,
