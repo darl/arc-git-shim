@@ -61,6 +61,7 @@ import p_diff_patch_prefix_ignore_all_space_range from "./paths/diff-patch-prefi
 import p_diff_patch_prefix_ignore_all_space from "./paths/diff-patch-prefix-ignore-all-space"
 import p_diff_prose from "./paths/diff-prose"
 import p_diff_quiet from "./paths/diff-quiet"
+import p_diff_raw_numstat_submodule_short_minimal_ignore_space from "./paths/diff-raw-numstat-submodule-short-minimal-ignore-space"
 import p_diff_raw_numstat from "./paths/diff-raw-numstat"
 import p_diff_rev_numstat_separator from "./paths/diff-rev-numstat-separator"
 import p_diff_unified_prefixed_range from "./paths/diff-unified-prefixed-range"
@@ -233,6 +234,7 @@ export const paths: Path[] = [
 	p_diff_patch_prefix_ignore_all_space,
 	p_diff_prose,
 	p_diff_quiet,
+	p_diff_raw_numstat_submodule_short_minimal_ignore_space,
 	p_diff_raw_numstat,
 	p_diff_rev_numstat_separator,
 	p_diff_unified_prefixed_range,
