@@ -138,6 +138,7 @@ import p_show_blob from "./paths/show-blob"
 import p_show_commit from "./paths/show-commit"
 import p_show_format_quiet from "./paths/show-format-quiet"
 import p_show_name_only_subject from "./paths/show-name-only-subject"
+import p_show_ref_head from "./paths/show-ref-head"
 import p_show_ref_verify from "./paths/show-ref-verify"
 import p_show_stat_subject_directory from "./paths/show-stat-subject-directory"
 import p_stash from "./paths/stash"
@@ -311,6 +312,7 @@ export const paths: Path[] = [
 	p_show_commit,
 	p_show_format_quiet,
 	p_show_name_only_subject,
+	p_show_ref_head,
 	p_show_ref_verify,
 	p_show_stat_subject_directory,
 	p_stash,
