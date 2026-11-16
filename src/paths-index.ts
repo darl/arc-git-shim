@@ -165,6 +165,7 @@ import p_unsupported_write_tree from "./paths/unsupported-write-tree"
 import p_update_index_quiet_refresh from "./paths/update-index-quiet-refresh"
 import p_update_ref_private_delete from "./paths/update-ref-private-delete"
 import p_worktree_add_help from "./paths/worktree-add-help"
+import p_worktree_add_locked from "./paths/worktree-add-locked"
 import p_worktree_add from "./paths/worktree-add"
 import p_worktree_flag_list from "./paths/worktree-flag-list"
 import p_worktree_list from "./paths/worktree-list"
@@ -339,6 +340,7 @@ export const paths: Path[] = [
 	p_update_index_quiet_refresh,
 	p_update_ref_private_delete,
 	p_worktree_add_help,
+	p_worktree_add_locked,
 	p_worktree_add,
 	p_worktree_flag_list,
 	p_worktree_list,
